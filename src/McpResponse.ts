@@ -54,6 +54,7 @@ export class McpResponse implements Response {
   #attachedTraceSummary?: TraceResult;
   #attachedTraceInsight?: TraceInsightData;
   #attachedLighthouseResult?: LighthouseData;
+  #attachedMemorySnapshot?: unknown;
   #textResponseLines: string[] = [];
   #images: ImageContentData[] = [];
   #networkRequestsOptions?: {
@@ -194,6 +195,10 @@ export class McpResponse implements Response {
 
   attachLighthouseResult(result: LighthouseData): void {
     this.#attachedLighthouseResult = result;
+  }
+
+  attachMemorySnapshot(result: LighthouseData): void {
+    this.#attachedMemorySnapshot = result;
   }
 
   get includePages(): boolean {

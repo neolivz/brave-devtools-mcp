@@ -33,3 +33,26 @@ export const takeMemorySnapshot = definePageTool({
     );
   },
 });
+
+export const exploreMemorySnapshot = definePageTool({
+  name: 'explored_memory_snapshot',
+  description: 'Explose ',
+  annotations: {
+    category: ToolCategory.PERFORMANCE,
+    readOnlyHint: true,
+  },
+  schema: {
+    filePath: zod
+      .string()
+      .describe('A path to a .heapsnapshot file to save the heapsnapshot to.'),
+  },
+  handler: async (request, response, _context) => {
+    const page = request.page;
+
+    await page.pptrPage.captureHeapSnapshot({
+      path: request.params.filePath,
+    });
+
+    response.attachMemorySnapshot(request.params.filePath);
+  },
+});
