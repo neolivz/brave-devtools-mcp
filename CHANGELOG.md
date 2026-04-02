@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.22.0](https://github.com/ChromeDevTools/chrome-devtools-mcp/compare/chrome-devtools-mcp-v0.21.0...chrome-devtools-mcp-v0.22.0) (2026-04-02)
+
+
+### 🎉 Features
+
+* add update notification to both binaries ([#1783](https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/1783)) ([e01e333](https://github.com/ChromeDevTools/chrome-devtools-mcp/commit/e01e33355e85c3b38e7aba6aceff57271b99a830))
+* experimental click_at(x,y) tool ([#1788](https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/1788)) ([c4f5471](https://github.com/ChromeDevTools/chrome-devtools-mcp/commit/c4f54710d9d7c3d1167628e5135b4cf92beaec45))
+
+
+### 📄 Documentation
+
+* fix skill and reference documentation issues ([#1249](https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/1249)) ([9236834](https://github.com/ChromeDevTools/chrome-devtools-mcp/commit/92368345dd62fce0a65a1081f80c23790edbf7d1))
+* update the README on installing as a VS code agent plugin  ([#1796](https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/1796)) ([1b5dcae](https://github.com/ChromeDevTools/chrome-devtools-mcp/commit/1b5dcae2a03a9de8c29c9f25a4d04cdfbad416a7))
+
+
+### 🏗️ Refactor
+
+* move waitForEventsAfterAction to McpPage ([#1780](https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/1780)) ([c7c8f50](https://github.com/ChromeDevTools/chrome-devtools-mcp/commit/c7c8f50f802643fd90bd9d0419acfb1bb8dd58ad))
+
 ## [0.21.0](https://github.com/ChromeDevTools/chrome-devtools-mcp/compare/chrome-devtools-mcp-v0.20.3...chrome-devtools-mcp-v0.21.0) (2026-04-01)
 
 
