@@ -14,8 +14,6 @@ import {McpContext} from './McpContext.js';
 import {McpResponse} from './McpResponse.js';
 import {Mutex} from './Mutex.js';
 import {SlimMcpResponse} from './SlimMcpResponse.js';
-import {ClearcutLogger} from './telemetry/ClearcutLogger.js';
-import {bucketizeLatency} from './telemetry/metricUtils.js';
 import {
   McpServer,
   type CallToolResult,
@@ -33,21 +31,10 @@ export async function createMcpServer(
     logFile?: fs.WriteStream;
   },
 ) {
-  let clearcutLogger: ClearcutLogger | undefined;
-  if (serverArgs.usageStatistics) {
-    clearcutLogger = new ClearcutLogger({
-      logFile: serverArgs.logFile,
-      appVersion: VERSION,
-      clearcutEndpoint: serverArgs.clearcutEndpoint,
-      clearcutForceFlushIntervalMs: serverArgs.clearcutForceFlushIntervalMs,
-      clearcutIncludePidHeader: serverArgs.clearcutIncludePidHeader,
-    });
-  }
-
   const server = new McpServer(
     {
-      name: 'chrome_devtools',
-      title: 'Chrome DevTools MCP server',
+      name: 'brave_devtools',
+      title: 'Brave DevTools MCP server',
       version: VERSION,
     },
     {capabilities: {logging: {}}},
@@ -56,18 +43,11 @@ export async function createMcpServer(
     return {};
   });
 
-  server.server.oninitialized = () => {
-    const clientName = server.server.getClientVersion()?.name;
-    if (clientName) {
-      clearcutLogger?.setClientName(clientName);
-    }
-  };
-
   let context: McpContext;
   async function getContext(): Promise<McpContext> {
-    const braveArgs: string[] = (serverArgs.chromeArg ?? []).map(String);
+    const braveArgs: string[] = (serverArgs.braveArg ?? []).map(String);
     const ignoreDefaultBraveArgs: string[] = (
-      serverArgs.ignoreDefaultChromeArg ?? []
+      serverArgs.ignoreDefaultBraveArg ?? []
     ).map(String);
     if (serverArgs.proxyServer) {
       braveArgs.push(`--proxy-server=${serverArgs.proxyServer}`);
@@ -175,8 +155,6 @@ export async function createMcpServer(
       },
       async (params): Promise<CallToolResult> => {
         const guard = await toolMutex.acquire();
-        const startTime = Date.now();
-        let success = false;
         try {
           logger(`${tool.name} request: ${JSON.stringify(params, null, '  ')}`);
           const context = await getContext();
@@ -220,7 +198,6 @@ export async function createMcpServer(
           } = {
             content,
           };
-          success = true;
           if (serverArgs.experimentalStructuredContent) {
             result.structuredContent = structuredContent as Record<
               string,
@@ -244,11 +221,6 @@ export async function createMcpServer(
             isError: true,
           };
         } finally {
-          void clearcutLogger?.logToolInvocation({
-            toolName: tool.name,
-            success,
-            latencyMs: bucketizeLatency(Date.now() - startTime),
-          });
           guard.dispose();
         }
       },
@@ -262,12 +234,12 @@ export async function createMcpServer(
 
   await loadIssueDescriptions();
 
-  return {server, clearcutLogger};
+  return {server};
 }
 
 export const logDisclaimers = (args: ReturnType<typeof parseArguments>) => {
   console.error(
-    `chrome-devtools-mcp exposes content of the browser instance to the MCP clients allowing them to inspect,
+    `brave-devtools-mcp exposes content of the browser instance to the MCP clients allowing them to inspect,
 debug, and modify any data in the browser or DevTools.
 Avoid sharing sensitive or personal information that you do not want to share with MCP clients.`,
   );
@@ -275,14 +247,6 @@ Avoid sharing sensitive or personal information that you do not want to share wi
   if (!args.slim && args.performanceCrux) {
     console.error(
       `Performance tools may send trace URLs to the Google CrUX API to fetch real-user experience data. To disable, run with --no-performance-crux.`,
-    );
-  }
-
-  if (!args.slim && args.usageStatistics) {
-    console.error(
-      `
-Google collects usage statistics to improve Chrome DevTools MCP. To opt-out, run with --no-usage-statistics.
-For more details, visit: https://github.com/ChromeDevTools/chrome-devtools-mcp#usage-statistics`,
     );
   }
 };
