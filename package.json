@@ -1,11 +1,11 @@
 {
-  "name": "chrome-devtools-mcp",
+  "name": "brave-devtools-mcp",
   "version": "0.21.0",
-  "description": "MCP server for Chrome DevTools",
+  "description": "MCP server for Brave DevTools",
   "type": "module",
   "bin": {
-    "chrome-devtools-mcp": "./build/src/bin/chrome-devtools-mcp.js",
-    "chrome-devtools": "./build/src/bin/chrome-devtools.js"
+    "brave-devtools-mcp": "./build/src/bin/brave-devtools-mcp.js",
+    "brave-devtools": "./build/src/bin/brave-devtools.js"
   },
   "main": "./build/src/index.js",
   "scripts": {
