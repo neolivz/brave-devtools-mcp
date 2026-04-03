@@ -2,10 +2,12 @@
 
 [![npm brave-devtools-mcp package](https://img.shields.io/npm/v/brave-devtools-mcp.svg)](https://npmjs.org/package/brave-devtools-mcp)
 
+> **Fork of [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp)** — adapted to work with [Brave Browser](https://brave.com). All credit for the original project goes to the Chrome DevTools team at Google.
+
 `brave-devtools-mcp` lets your coding agent (such as Gemini, Claude, Cursor or Copilot)
 control and inspect a live Brave browser. It acts as a Model-Context-Protocol
 (MCP) server, giving your AI coding assistant access to the full power of
-Chrome DevTools for reliable automation, in-depth debugging, and performance analysis.
+Brave DevTools for reliable automation, in-depth debugging, and performance analysis.
 
 ## [Tool reference](./docs/tool-reference.md) | [Changelog](./CHANGELOG.md) | [Contributing](./CONTRIBUTING.md) | [Troubleshooting](./docs/troubleshooting.md) | [Design Principles](./docs/design-principles.md)
 
