@@ -13,7 +13,7 @@ const EXTENSIONS_CONDITION = 'experimentalExtensionSupport';
 
 export const installExtension = defineTool({
   name: 'install_extension',
-  description: 'Installs a Chrome extension from the given path.',
+  description: 'Installs a Brave extension from the given path.',
   annotations: {
     category: ToolCategory.EXTENSIONS,
     readOnlyHint: false,
@@ -33,7 +33,7 @@ export const installExtension = defineTool({
 
 export const uninstallExtension = defineTool({
   name: 'uninstall_extension',
-  description: 'Uninstalls a Chrome extension by its ID.',
+  description: 'Uninstalls a Brave extension by its ID.',
   annotations: {
     category: ToolCategory.EXTENSIONS,
     readOnlyHint: false,
@@ -66,7 +66,7 @@ export const listExtensions = defineTool({
 
 export const reloadExtension = defineTool({
   name: 'reload_extension',
-  description: 'Reloads an unpacked Chrome extension by its ID.',
+  description: 'Reloads an unpacked Brave extension by its ID.',
   annotations: {
     category: ToolCategory.EXTENSIONS,
     readOnlyHint: false,
@@ -88,7 +88,7 @@ export const reloadExtension = defineTool({
 
 export const triggerExtensionAction = defineTool({
   name: 'trigger_extension_action',
-  description: 'Triggers an action in a Chrome extension.',
+  description: 'Triggers an action in a Brave extension.',
   annotations: {
     category: ToolCategory.EXTENSIONS,
     readOnlyHint: false,
