@@ -15,7 +15,7 @@ import {StdioServerTransport} from '../third_party/index.js';
 import {checkForUpdates} from '../utils/check-for-updates.js';
 import {VERSION} from '../version.js';
 
-import {cliOptions, parseArguments} from './chrome-devtools-mcp-cli-options.js';
+import {cliOptions, parseArguments} from './brave-devtools-mcp-cli-options.js';
 
 await checkForUpdates(
   'Run `npm install chrome-devtools-mcp@latest` to update.',

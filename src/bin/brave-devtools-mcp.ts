@@ -33,4 +33,4 @@ if (major < 20) {
   process.exit(1);
 }
 
-await import('./chrome-devtools-mcp-main.js');
+await import('./brave-devtools-mcp-main.js');

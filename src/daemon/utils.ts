@@ -17,7 +17,7 @@ export const INDEX_SCRIPT_PATH = path.join(
   import.meta.dirname,
   '..',
   'bin',
-  'chrome-devtools-mcp.js',
+  'brave-devtools-mcp.js',
 );
 
 const APP_NAME = 'chrome-devtools-mcp';
