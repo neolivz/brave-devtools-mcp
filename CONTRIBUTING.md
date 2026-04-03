@@ -46,7 +46,7 @@ completed:
 
 - Documentation for the feature is up to date. For example, README.md and tools
   reference are updated.
-- The feature can be used with Chrome stable or version restrictions are
+- The feature can be used with Brave stable or version restrictions are
   documented otherwise.
 - Corresponding skills are updated or new skills are added if needed.
 - The feature fulfills the use case by its own or in conjunction with existing
@@ -55,8 +55,8 @@ completed:
 
 ### Release process
 
-Releasing `chrome-devtools-mcp` is automated by GitHub Actions. To release a new
-version, [search for a PR titled `chore(main): release chrome-devtools-mcp`](https://github.com/ChromeDevTools/chrome-devtools-mcp/pulls?q=is%3Apr+is%3Aopen+%22chore%28main%29%3A+release+chrome-devtools-mcp%22)
+Releasing `brave-devtools-mcp` is automated by GitHub Actions. To release a new
+version, [search for a PR titled `chore(main): release brave-devtools-mcp`](https://github.com/neolivz/brave-devtools-mcp/pulls?q=is%3Apr+is%3Aopen+%22chore%28main%29%3A+release+brave-devtools-mcp%22)
 and review, test, and land it. The release PR is automatically opened if there
 are any changes on the main branch that show up in the changelog.
 
@@ -65,8 +65,8 @@ are any changes on the main branch that show up in the changelog.
 Check that you are using node version specified in .nvmrc, then run following commands:
 
 ```sh
-git clone https://github.com/ChromeDevTools/chrome-devtools-mcp.git
-cd chrome-devtools-mcp
+git clone https://github.com/neolivz/brave-devtools-mcp.git
+cd brave-devtools-mcp
 npm ci
 npm run build
 ```
@@ -74,7 +74,7 @@ npm run build
 ### Testing with @modelcontextprotocol/inspector
 
 ```sh
-npx @modelcontextprotocol/inspector node /build/src/bin/chrome-devtools-mcp.js
+npx @modelcontextprotocol/inspector node /build/src/bin/brave-devtools-mcp.js
 ```
 
 ### Testing with an MCP client
@@ -84,9 +84,9 @@ Add the MCP server to your client's config.
 ```json
 {
   "mcpServers": {
-    "chrome-devtools": {
+    "brave-devtools": {
       "command": "node",
-      "args": ["/path-to/build/src/bin/chrome-devtools-mcp.js"]
+      "args": ["/path-to/build/src/bin/brave-devtools-mcp.js"]
     }
   }
 }
@@ -102,7 +102,7 @@ Usually VS Code automatically detects and forwards `6274` but fails to detect `6
 To write debug logs to `log.txt` in the working directory, run with the following commands:
 
 ```sh
-npx @modelcontextprotocol/inspector node /build/src/bin/chrome-devtools-mcp.js --log-file=/your/desired/path/log.txt
+npx @modelcontextprotocol/inspector node /build/src/bin/brave-devtools-mcp.js --log-file=/your/desired/path/log.txt
 ```
 
 You can use the `DEBUG` environment variable as usual to control categories that are logged.
