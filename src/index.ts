@@ -7,7 +7,6 @@
 import type fs from 'node:fs';
 
 import type {parseArguments} from './bin/brave-devtools-mcp-cli-options.js';
-import type {Channel} from './browser.js';
 import {ensureBrowserConnected, ensureBrowserLaunched} from './browser.js';
 import {loadIssueDescriptions} from './issue-descriptions.js';
 import {logger} from './logger.js';
@@ -66,12 +65,12 @@ export async function createMcpServer(
 
   let context: McpContext;
   async function getContext(): Promise<McpContext> {
-    const chromeArgs: string[] = (serverArgs.chromeArg ?? []).map(String);
-    const ignoreDefaultChromeArgs: string[] = (
+    const braveArgs: string[] = (serverArgs.chromeArg ?? []).map(String);
+    const ignoreDefaultBraveArgs: string[] = (
       serverArgs.ignoreDefaultChromeArg ?? []
     ).map(String);
     if (serverArgs.proxyServer) {
-      chromeArgs.push(`--proxy-server=${serverArgs.proxyServer}`);
+      braveArgs.push(`--proxy-server=${serverArgs.proxyServer}`);
     }
     const devtools = serverArgs.experimentalDevtools ?? false;
     const browser =
@@ -80,23 +79,18 @@ export async function createMcpServer(
             browserURL: serverArgs.browserUrl,
             wsEndpoint: serverArgs.wsEndpoint,
             wsHeaders: serverArgs.wsHeaders,
-            // Important: only pass channel, if autoConnect is true.
-            channel: serverArgs.autoConnect
-              ? (serverArgs.channel as Channel)
-              : undefined,
             userDataDir: serverArgs.userDataDir,
             devtools,
           })
         : await ensureBrowserLaunched({
             headless: serverArgs.headless,
             executablePath: serverArgs.executablePath,
-            channel: serverArgs.channel as Channel,
             isolated: serverArgs.isolated ?? false,
             userDataDir: serverArgs.userDataDir,
             logFile: options.logFile,
             viewport: serverArgs.viewport,
-            chromeArgs,
-            ignoreDefaultChromeArgs,
+            braveArgs,
+            ignoreDefaultBraveArgs,
             acceptInsecureCerts: serverArgs.acceptInsecureCerts,
             devtools,
             enableExtensions: serverArgs.categoryExtensions,
