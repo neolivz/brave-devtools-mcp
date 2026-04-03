@@ -4,14 +4,70 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type {zod} from '../third_party/index.js';
 import type {ToolDefinition} from '../tools/ToolDefinition.js';
 
-import {
-  transformArgName,
-  transformArgType,
-  getZodType,
-  PARAM_BLOCKLIST,
-} from './ClearcutLogger.js';
+export const PARAM_BLOCKLIST = new Set(['uid', 'reqid', 'msgid']);
+
+const SUPPORTED_ZOD_TYPES = [
+  'ZodString',
+  'ZodNumber',
+  'ZodBoolean',
+  'ZodArray',
+  'ZodEnum',
+] as const;
+type ZodType = (typeof SUPPORTED_ZOD_TYPES)[number];
+
+function isZodType(type: string): type is ZodType {
+  return SUPPORTED_ZOD_TYPES.includes(type as ZodType);
+}
+
+export function getZodType(zodType: zod.ZodTypeAny): ZodType {
+  const def = zodType._def;
+  const typeName = def.typeName;
+
+  if (
+    typeName === 'ZodOptional' ||
+    typeName === 'ZodDefault' ||
+    typeName === 'ZodNullable'
+  ) {
+    return getZodType(def.innerType);
+  }
+  if (typeName === 'ZodEffects') {
+    return getZodType(def.schema);
+  }
+
+  if (isZodType(typeName)) {
+    return typeName;
+  }
+  throw new Error(`Unsupported zod type for tool parameter: ${typeName}`);
+}
+
+export function transformArgName(zodType: ZodType, name: string): string {
+  if (zodType === 'ZodString') {
+    return `${name}_length`;
+  } else if (zodType === 'ZodArray') {
+    return `${name}_count`;
+  } else {
+    return name;
+  }
+}
+
+export function transformArgType(zodType: ZodType): string {
+  if (zodType === 'ZodString' || zodType === 'ZodArray') {
+    return 'number';
+  }
+  switch (zodType) {
+    case 'ZodNumber':
+      return 'number';
+    case 'ZodBoolean':
+      return 'boolean';
+    case 'ZodEnum':
+      return 'enum';
+    default:
+      throw new Error(`Unsupported zod type for tool parameter: ${zodType}`);
+  }
+}
 
 /**
  * Validates that all values in an enum are of the homogeneous primitive type.

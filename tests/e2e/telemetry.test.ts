@@ -11,25 +11,25 @@ import type {AddressInfo} from 'node:net';
 import path from 'node:path';
 import {describe, it} from 'node:test';
 
-import type {ChromeDevToolsMcpExtension} from '../../src/telemetry/types';
+import type {BraveDevToolsMcpExtension} from '../../src/telemetry/types';
 
 const SERVER_PATH = path.resolve('build/src/bin/chrome-devtools-mcp.js');
 
 interface MockServerContext {
   server: http.Server;
   port: number;
-  events: ChromeDevToolsMcpExtension[];
+  events: BraveDevToolsMcpExtension[];
   watchdogPid?: number;
   waitForEvent: (
-    predicate: (event: ChromeDevToolsMcpExtension) => boolean,
-  ) => Promise<ChromeDevToolsMcpExtension>;
+    predicate: (event: BraveDevToolsMcpExtension) => boolean,
+  ) => Promise<BraveDevToolsMcpExtension>;
 }
 
 async function startMockServer(): Promise<MockServerContext> {
-  const events: ChromeDevToolsMcpExtension[] = [];
+  const events: BraveDevToolsMcpExtension[] = [];
   let waitingResolvers: Array<{
-    predicate: (event: ChromeDevToolsMcpExtension) => boolean;
-    resolve: (event: ChromeDevToolsMcpExtension) => void;
+    predicate: (event: BraveDevToolsMcpExtension) => boolean;
+    resolve: (event: BraveDevToolsMcpExtension) => void;
   }> = [];
   let watchdogPid: number | undefined;
 
@@ -53,7 +53,7 @@ async function startMockServer(): Promise<MockServerContext> {
               if (logEvent.source_extension_json) {
                 const ext = JSON.parse(
                   logEvent.source_extension_json,
-                ) as ChromeDevToolsMcpExtension;
+                ) as BraveDevToolsMcpExtension;
                 events.push(ext);
 
                 // Check if any waiters are satisfied

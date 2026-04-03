@@ -5,7 +5,7 @@
  */
 
 // Protobuf message interfaces
-export interface ChromeDevToolsMcpExtension {
+export interface BraveDevToolsMcpExtension {
   os_type?: OsType;
   mcp_client?: McpClient;
   app_version?: string;
@@ -63,13 +63,6 @@ export enum OsType {
   OS_TYPE_LINUX = 3,
 }
 
-export enum ChromeChannel {
-  CHROME_CHANNEL_UNSPECIFIED = 0,
-  CHROME_CHANNEL_CANARY = 1,
-  CHROME_CHANNEL_DEV = 2,
-  CHROME_CHANNEL_BETA = 3,
-  CHROME_CHANNEL_STABLE = 4,
-}
 
 export enum McpClient {
   MCP_CLIENT_UNSPECIFIED = 0,
@@ -90,5 +83,5 @@ export enum WatchdogMessageType {
 
 export interface WatchdogMessage {
   type: WatchdogMessageType.LOG_EVENT;
-  payload: ChromeDevToolsMcpExtension;
+  payload: BraveDevToolsMcpExtension;
 }
