@@ -13,7 +13,7 @@ import {describe, it} from 'node:test';
 
 import type {BraveDevToolsMcpExtension} from '../../src/telemetry/types';
 
-const SERVER_PATH = path.resolve('build/src/bin/chrome-devtools-mcp.js');
+const SERVER_PATH = path.resolve('build/src/bin/brave-devtools-mcp.js');
 
 interface MockServerContext {
   server: http.Server;
@@ -172,7 +172,6 @@ describe('Telemetry E2E', () => {
         process.execPath,
         [
           SERVER_PATH,
-          '--usage-statistics',
           '--headless',
           `--clearcutEndpoint=http://127.0.0.1:${mockContext.port}`,
           '--clearcutForceFlushIntervalMs=10',
@@ -183,7 +182,6 @@ describe('Telemetry E2E', () => {
           env: {
             ...process.env,
             CI: undefined,
-            CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: undefined,
           },
           ...spawnOptions,
         },

@@ -7,7 +7,7 @@
 import assert from 'node:assert';
 import {describe, it} from 'node:test';
 
-import {parseArguments} from '../src/bin/chrome-devtools-mcp-cli-options.js';
+import {parseArguments} from '../src/bin/brave-devtools-mcp-cli-options.js';
 
 describe('cli args parsing', () => {
   const defaultArgs = {
@@ -21,8 +21,6 @@ describe('cli args parsing', () => {
     autoConnect: undefined,
     'performance-crux': true,
     performanceCrux: true,
-    'usage-statistics': true,
-    usageStatistics: true,
   };
 
   it('parses with default args', async () => {
@@ -31,8 +29,8 @@ describe('cli args parsing', () => {
       ...defaultArgs,
       _: [],
       headless: false,
-      $0: 'npx chrome-devtools-mcp@latest',
-      channel: 'stable',
+      $0: 'npx brave-devtools-mcp@latest',
+
     });
   });
 
@@ -47,7 +45,7 @@ describe('cli args parsing', () => {
       ...defaultArgs,
       _: [],
       headless: false,
-      $0: 'npx chrome-devtools-mcp@latest',
+      $0: 'npx brave-devtools-mcp@latest',
       'browser-url': 'http://localhost:3000',
       browserUrl: 'http://localhost:3000',
       u: 'http://localhost:3000',
@@ -65,8 +63,8 @@ describe('cli args parsing', () => {
       ...defaultArgs,
       _: [],
       headless: false,
-      $0: 'npx chrome-devtools-mcp@latest',
-      channel: 'stable',
+      $0: 'npx brave-devtools-mcp@latest',
+
       'user-data-dir': '/tmp/chrome-profile',
       userDataDir: '/tmp/chrome-profile',
     });
@@ -83,11 +81,11 @@ describe('cli args parsing', () => {
       ...defaultArgs,
       _: [],
       headless: false,
-      $0: 'npx chrome-devtools-mcp@latest',
+      $0: 'npx brave-devtools-mcp@latest',
       'browser-url': undefined,
       browserUrl: undefined,
       u: undefined,
-      channel: 'stable',
+
     });
   });
 
@@ -102,7 +100,7 @@ describe('cli args parsing', () => {
       ...defaultArgs,
       _: [],
       headless: false,
-      $0: 'npx chrome-devtools-mcp@latest',
+      $0: 'npx brave-devtools-mcp@latest',
       'executable-path': '/tmp/test 123/chrome',
       e: '/tmp/test 123/chrome',
       executablePath: '/tmp/test 123/chrome',
@@ -120,8 +118,8 @@ describe('cli args parsing', () => {
       ...defaultArgs,
       _: [],
       headless: false,
-      $0: 'npx chrome-devtools-mcp@latest',
-      channel: 'stable',
+      $0: 'npx brave-devtools-mcp@latest',
+
       viewport: {
         width: 888,
         height: 777,
@@ -129,42 +127,42 @@ describe('cli args parsing', () => {
     });
   });
 
-  it('parses chrome args', async () => {
+  it('parses brave args', async () => {
     const args = parseArguments('1.0.0', [
       'node',
       'main.js',
-      `--chrome-arg='--no-sandbox'`,
-      `--chrome-arg='--disable-setuid-sandbox'`,
+      `--brave-arg='--no-sandbox'`,
+      `--brave-arg='--disable-setuid-sandbox'`,
     ]);
     assert.deepStrictEqual(args, {
       ...defaultArgs,
       _: [],
       headless: false,
-      $0: 'npx chrome-devtools-mcp@latest',
-      channel: 'stable',
-      'chrome-arg': ['--no-sandbox', '--disable-setuid-sandbox'],
-      chromeArg: ['--no-sandbox', '--disable-setuid-sandbox'],
+      $0: 'npx brave-devtools-mcp@latest',
+
+      'brave-arg': ['--no-sandbox', '--disable-setuid-sandbox'],
+      braveArg: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
   });
 
-  it('parses ignore chrome args', async () => {
+  it('parses ignore brave args', async () => {
     const args = parseArguments('1.0.0', [
       'node',
       'main.js',
-      `--ignore-default-chrome-arg='--disable-extensions'`,
-      `--ignore-default-chrome-arg='--disable-cancel-all-touches'`,
+      `--ignore-default-brave-arg='--disable-extensions'`,
+      `--ignore-default-brave-arg='--disable-cancel-all-touches'`,
     ]);
     assert.deepStrictEqual(args, {
       ...defaultArgs,
       _: [],
       headless: false,
-      $0: 'npx chrome-devtools-mcp@latest',
-      channel: 'stable',
-      'ignore-default-chrome-arg': [
+      $0: 'npx brave-devtools-mcp@latest',
+
+      'ignore-default-brave-arg': [
         '--disable-extensions',
         '--disable-cancel-all-touches',
       ],
-      ignoreDefaultChromeArg: [
+      ignoreDefaultBraveArg: [
         '--disable-extensions',
         '--disable-cancel-all-touches',
       ],
@@ -182,7 +180,7 @@ describe('cli args parsing', () => {
       ...defaultArgs,
       _: [],
       headless: false,
-      $0: 'npx chrome-devtools-mcp@latest',
+      $0: 'npx brave-devtools-mcp@latest',
       'ws-endpoint': 'ws://127.0.0.1:9222/devtools/browser/abc123',
       wsEndpoint: 'ws://127.0.0.1:9222/devtools/browser/abc123',
       w: 'ws://127.0.0.1:9222/devtools/browser/abc123',
@@ -200,7 +198,7 @@ describe('cli args parsing', () => {
       ...defaultArgs,
       _: [],
       headless: false,
-      $0: 'npx chrome-devtools-mcp@latest',
+      $0: 'npx brave-devtools-mcp@latest',
       'ws-endpoint': 'wss://example.com:9222/devtools/browser/abc123',
       wsEndpoint: 'wss://example.com:9222/devtools/browser/abc123',
       w: 'wss://example.com:9222/devtools/browser/abc123',
@@ -232,8 +230,8 @@ describe('cli args parsing', () => {
       ...defaultArgs,
       _: [],
       headless: false,
-      $0: 'npx chrome-devtools-mcp@latest',
-      channel: 'stable',
+      $0: 'npx brave-devtools-mcp@latest',
+
       'category-emulation': false,
       categoryEmulation: false,
     });
@@ -244,33 +242,11 @@ describe('cli args parsing', () => {
       ...defaultArgs,
       _: [],
       headless: false,
-      $0: 'npx chrome-devtools-mcp@latest',
-      channel: 'stable',
+      $0: 'npx brave-devtools-mcp@latest',
+
       'auto-connect': true,
       autoConnect: true,
     });
-  });
-
-  it('parses usage statistics flag', async () => {
-    // Test default (should be true).
-    const defaultArgs = parseArguments('1.0.0', ['node', 'main.js']);
-    assert.strictEqual(defaultArgs.usageStatistics, true);
-
-    // Test enabling it
-    const enabledArgs = parseArguments('1.0.0', [
-      'node',
-      'main.js',
-      '--usage-statistics',
-    ]);
-    assert.strictEqual(enabledArgs.usageStatistics, true);
-
-    // Test disabling it
-    const disabledArgs = parseArguments('1.0.0', [
-      'node',
-      'main.js',
-      '--no-usage-statistics',
-    ]);
-    assert.strictEqual(disabledArgs.usageStatistics, false);
   });
 
   it('parses performance crux flag', async () => {
