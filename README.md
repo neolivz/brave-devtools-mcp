@@ -726,7 +726,7 @@ Add the `--browser-url` option to your MCP client configuration. The value of th
 
 Start the Brave browser with the remote debugging port enabled. Make sure to close any running Brave instances before starting a new one with the debugging port enabled. The port number you choose must be the same as the one you specified in the `--browser-url` option in your MCP client configuration.
 
-For security reasons, Brave requires you to use a non-default user data directory when enabling the remote debugging port. You can specify a custom directory using the `--user-data-dir` flag. This ensures that your regular browsing profile and data are not exposed to the debugging session.
+Unlike Google Chrome 136+, Brave does not require a non-default user data directory for the remote debugging port; it will expose your default profile if you don't pass one. For safety, we still recommend a separate directory via the `--user-data-dir` flag so your regular browsing profile and data are not exposed to the debugging session.
 
 **macOS**
 
