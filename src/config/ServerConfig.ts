@@ -180,16 +180,6 @@ export class ServerConfig implements ReadonlyServerConfig {
       ...filterExplicitArgs(explicitArgs, baseOptions),
     };
 
-    // `channel` only applies when Chrome is launched by channel. Leaving it
-    // unset otherwise keeps it out of telemetry (computeFlagUsage).
-    const launchesByChannel =
-      !resolvedArgs.browserUrl &&
-      !resolvedArgs.wsEndpoint &&
-      !resolvedArgs.executablePath;
-    if (!launchesByChannel && explicitArgs.channel === undefined) {
-      delete resolvedArgs.channel;
-    }
-
     if (isViaCli) {
       resolvedArgs.slim = false;
       resolvedArgs.pageIdRouting = true;

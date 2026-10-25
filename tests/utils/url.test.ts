@@ -521,6 +521,25 @@ describe('isAllowedUrl', () => {
     );
   });
 
+  it('should treat brave: URLs like chrome: URLs', () => {
+    assert.strictEqual(
+      isAllowedUrl('brave://newtab/', {categoryExtensions: undefined}),
+      true,
+    );
+    assert.strictEqual(
+      isAllowedUrl('brave://inspect/#devices', {categoryExtensions: undefined}),
+      true,
+    );
+    assert.strictEqual(
+      isAllowedUrl('brave://settings', {categoryExtensions: undefined}),
+      false,
+    );
+    assert.strictEqual(
+      isAllowedUrl('brave://wallet', {categoryExtensions: undefined}),
+      false,
+    );
+  });
+
   it('should disallow internal chrome: and chrome-untrusted: URLs', () => {
     assert.strictEqual(
       isAllowedUrl('chrome://settings', {categoryExtensions: undefined}),

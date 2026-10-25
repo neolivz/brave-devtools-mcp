@@ -104,7 +104,7 @@ export interface IsAllowedUrlOptions {
  * Determines whether a URL is allowed for navigation and page tracking.
  *
  * Disallowed schemes:
- * - chrome: (except chrome://newtab/ and chrome://inspect*)
+ * - chrome: and brave: (except their newtab and inspect pages)
  * - chrome-untrusted:
  * - chrome-extension: (unless categoryExtensions is true)
  *
@@ -123,7 +123,10 @@ export function isAllowedUrl(
     return false;
   }
 
-  if (parsed.protocol === 'chrome:') {
+  // Brave serves its internal pages under both chrome: and brave:.
+  const isBrowserInternal =
+    parsed.protocol === 'chrome:' || parsed.protocol === 'brave:';
+  if (isBrowserInternal) {
     const host = parsed.hostname.toLowerCase();
     const path = parsed.pathname.toLowerCase();
     if (host === 'newtab' || host === 'new-tab-page' || host === 'inspect') {
@@ -139,10 +142,7 @@ export function isAllowedUrl(
     }
   }
 
-  if (
-    parsed.protocol === 'chrome:' ||
-    parsed.protocol === 'chrome-untrusted:'
-  ) {
+  if (isBrowserInternal || parsed.protocol === 'chrome-untrusted:') {
     return false;
   }
   if (!options.categoryExtensions && parsed.protocol === 'chrome-extension:') {

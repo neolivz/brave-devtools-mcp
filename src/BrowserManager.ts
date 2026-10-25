@@ -14,9 +14,12 @@ import {
   Mutex,
   puppeteer,
   type Browser,
-  type ChromeReleaseChannel,
   type LaunchOptions,
 } from './third_party/index.js';
+import {
+  detectBraveExecutable,
+  getDefaultBraveUserDataDir,
+} from './utils/brave.js';
 import {
   logger,
   puppeteerLogger,
@@ -83,7 +86,7 @@ export class BrowserManager {
   }
 
   /**
-   * Chrome refuses to start as root unless the sandbox is explicitly disabled and
+   * Brave refuses to start as root unless the sandbox is explicitly disabled and
    * only says so on its stderr. Because we launch with `pipe: true`, Puppeteer
    * never surfaces that stderr and the failure reaches the client as an opaque
    * `Protocol error (Target.setDiscoverTargets): Target closed`. Detect the
@@ -91,7 +94,7 @@ export class BrowserManager {
    *
    * Returns `undefined` when the failure cannot be explained by running as root,
    * including on platforms without uids and when the sandbox was already disabled
-   * through `--chrome-arg` (in which case root is not what stopped Chrome).
+   * through `--brave-arg` (in which case root is not what stopped Brave).
    */
   static rootSandboxLaunchError(
     error: Error,
@@ -109,11 +112,11 @@ export class BrowserManager {
       return undefined;
     }
     return new Error(
-      `Chrome failed to start: ${error.message}\n\n` +
-        'brave-devtools-mcp is running as root and Chrome does not start as root ' +
+      `Brave failed to start: ${error.message}\n\n` +
+        'brave-devtools-mcp is running as root and Brave does not start as root ' +
         '(https://crbug.com/638180). Run brave-devtools-mcp as a non-root user; in a ' +
         'container, create an unprivileged user in the image and switch to it with ' +
-        "USER. For the setup that Chrome's sandbox needs, see " +
+        "USER. For the setup that the Chromium sandbox needs, see " +
         'https://pptr.dev/troubleshooting#setting-up-chrome-linux-sandbox.',
       {
         cause: error,
@@ -210,8 +213,7 @@ export class BrowserManager {
 
   async #launch(): Promise<Browser> {
     const {
-      channel,
-      executablePath,
+      executablePath = detectBraveExecutable(),
       headless,
       isolated = false,
       categoryExtensions: enableExtensions,
@@ -221,14 +223,9 @@ export class BrowserManager {
       experimentalDevtools: devtools = false,
       blockedUrlPattern: blocklist,
       allowedUrlPattern: allowlist,
-      ignoreDefaultChromeArg,
+      ignoreDefaultBraveArg,
       proxyServer,
     } = this.#config.resolved;
-
-    const profileDirName =
-      channel && channel !== 'stable'
-        ? `chrome-profile-${channel}`
-        : 'chrome-profile';
 
     let userDataDir = this.#config.resolved.userDataDir;
     if (!isolated && !userDataDir) {
@@ -236,7 +233,7 @@ export class BrowserManager {
         os.homedir(),
         '.cache',
         viaCli ? 'brave-devtools-mcp-cli' : 'brave-devtools-mcp',
-        profileDirName,
+        'brave-profile',
       );
       await fs.promises.mkdir(userDataDir, {
         recursive: true,
@@ -244,7 +241,7 @@ export class BrowserManager {
     }
 
     const args: LaunchOptions['args'] = [
-      ...(this.#config.resolved.chromeArg ?? []),
+      ...(this.#config.resolved.braveArg ?? []),
     ];
     if (proxyServer) {
       args.push(`--proxy-server=${proxyServer}`);
@@ -252,18 +249,13 @@ export class BrowserManager {
     args.push('--hide-crash-restore-bubble');
 
     const ignoreDefaultArgs: LaunchOptions['ignoreDefaultArgs'] =
-      ignoreDefaultChromeArg ?? false;
+      ignoreDefaultBraveArg ?? false;
 
     if (headless) {
       args.push('--screen-info={3840x2160}');
     }
-    let puppeteerChannel: ChromeReleaseChannel | undefined;
     if (devtools) {
       args.push('--auto-open-devtools-for-tabs');
-    }
-    if (!executablePath) {
-      puppeteerChannel =
-        channel && channel !== 'stable' ? `chrome-${channel}` : 'chrome';
     }
 
     if (!headless) {
@@ -273,7 +265,6 @@ export class BrowserManager {
     let browser: Browser | undefined;
     try {
       browser = await puppeteer.launch({
-        channel: puppeteerChannel,
         targetFilter: BrowserManager.makeTargetFilter(enableExtensions),
         executablePath,
         defaultViewport: null,
@@ -290,7 +281,7 @@ export class BrowserManager {
         logger: puppeteerLogger,
         // The entry points own signal handling and call close(), which
         // closes the browser gracefully. Puppeteer's handlers would SIGKILL
-        // Chrome synchronously on the same signal and win the race.
+        // Brave synchronously on the same signal and win the race.
         handleSIGINT: false,
         handleSIGTERM: false,
         handleSIGHUP: false,
@@ -345,13 +336,15 @@ export class BrowserManager {
       wsEndpoint,
       wsHeaders,
       autoConnect: isAutoConnect,
-      userDataDir,
       blockedUrlPattern: blocklist,
       allowedUrlPattern: allowlist,
       categoryExtensions: enableExtensions,
     } = this.#config.resolved;
-    // Important: only pass channel, if autoConnect is true.
-    const channel = isAutoConnect ? this.#config.resolved.channel : undefined;
+    // Without an explicit userDataDir, autoConnect uses the default Brave
+    // profile.
+    const userDataDir =
+      this.#config.resolved.userDataDir ??
+      (isAutoConnect ? getDefaultBraveUserDataDir() : undefined);
 
     const connectOptions: Parameters<typeof puppeteer.connect>[0] = {
       targetFilter: BrowserManager.makeTargetFilter(enableExtensions),
@@ -377,50 +370,40 @@ export class BrowserManager {
       connectOptions.browserWSEndpoint = wsEndpoint;
     } else if (browserURL) {
       connectOptions.browserURL = browserURL;
-    } else if (channel || userDataDir) {
+    } else if (userDataDir) {
       autoConnect = true;
-      if (userDataDir) {
-        // TODO: re-expose this logic via Puppeteer.
-        const portPath = path.join(userDataDir, 'DevToolsActivePort');
-        try {
-          const fileContent = await fs.promises.readFile(portPath, 'utf8');
-          const [rawPort, rawPath] = fileContent
-            .split('\n')
-            .map(line => {
-              return line.trim();
-            })
-            .filter(line => {
-              return !!line;
-            });
-          if (!rawPort || !rawPath) {
-            throw new Error(
-              `Invalid DevToolsActivePort '${fileContent}' found`,
-            );
-          }
-          const port = parseInt(rawPort, 10);
-          if (isNaN(port) || port <= 0 || port > 65535) {
-            throw new Error(`Invalid port '${rawPort}' found`);
-          }
-          const browserWSEndpoint = `ws://127.0.0.1:${port}${rawPath}`;
-          connectOptions.browserWSEndpoint = browserWSEndpoint;
-        } catch (error) {
-          throw new Error(
-            `Could not connect to Chrome in ${userDataDir}. Check if Chrome is running and remote debugging is enabled by going to chrome://inspect/#remote-debugging.`,
-            {
-              cause: error,
-            },
-          );
+      // TODO: re-expose this logic via Puppeteer.
+      const portPath = path.join(userDataDir, 'DevToolsActivePort');
+      try {
+        const fileContent = await fs.promises.readFile(portPath, 'utf8');
+        const [rawPort, rawPath] = fileContent
+          .split('\n')
+          .map(line => {
+            return line.trim();
+          })
+          .filter(line => {
+            return !!line;
+          });
+        if (!rawPort || !rawPath) {
+          throw new Error(`Invalid DevToolsActivePort '${fileContent}' found`);
         }
-      } else {
-        if (!channel) {
-          throw new Error('Channel must be provided if userDataDir is missing');
+        const port = parseInt(rawPort, 10);
+        if (isNaN(port) || port <= 0 || port > 65535) {
+          throw new Error(`Invalid port '${rawPort}' found`);
         }
-        connectOptions.channel =
-          channel === 'stable' ? 'chrome' : `chrome-${channel}`;
+        const browserWSEndpoint = `ws://127.0.0.1:${port}${rawPath}`;
+        connectOptions.browserWSEndpoint = browserWSEndpoint;
+      } catch (error) {
+        throw new Error(
+          `Could not connect to Brave in ${userDataDir}. Check if Brave is running and remote debugging is enabled by going to brave://inspect/#remote-debugging.`,
+          {
+            cause: error,
+          },
+        );
       }
     } else {
       throw new Error(
-        'Either browserURL, wsEndpoint, channel or userDataDir must be provided',
+        'Either browserURL, wsEndpoint or userDataDir must be provided',
       );
     }
 
@@ -437,7 +420,7 @@ export class BrowserManager {
       return connected;
     } catch (err) {
       throw new Error(
-        `Could not connect to Chrome. ${autoConnect ? `Check if Chrome is running and remote debugging is enabled by going to chrome://inspect/#remote-debugging.` : `Check if Chrome is running.`}`,
+        `Could not connect to Brave. ${autoConnect ? `Check if Brave is running and remote debugging is enabled by going to brave://inspect/#remote-debugging.` : `Check if Brave is running.`}`,
         {
           cause: err,
         },

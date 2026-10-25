@@ -375,22 +375,18 @@ export const CLI_EXAMPLES: Array<[string, string]> = [
     `$0 --wsEndpoint ws://127.0.0.1:9222/devtools/browser/abc123 --wsHeaders '{"Authorization":"Bearer token"}'`,
     'Connect via WebSocket with custom headers',
   ],
-  ['$0 --channel beta', 'Use Chrome Beta installed on this system'],
-  ['$0 --channel canary', 'Use Chrome Canary installed on this system'],
-  ['$0 --channel dev', 'Use Chrome Dev installed on this system'],
-  ['$0 --channel stable', 'Use stable Chrome installed on this system'],
   ['$0 --logFile /tmp/log.txt', 'Save logs to a file'],
   ['$0 --help', 'Print CLI options'],
   [
     '$0 --viewport 1280x720',
-    'Launch Chrome with the initial viewport size of 1280x720px',
+    'Launch Brave with the initial viewport size of 1280x720px',
   ],
   [
-    `$0 --chrome-arg='--no-sandbox' --chrome-arg='--disable-setuid-sandbox'`,
-    'Launch Chrome without sandboxes. Use with caution.',
+    `$0 --brave-arg='--no-sandbox' --brave-arg='--disable-setuid-sandbox'`,
+    'Launch Brave without sandboxes. Use with caution.',
   ],
   [
-    `$0 --ignore-default-chrome-arg='--disable-extensions'`,
+    `$0 --ignore-default-brave-arg='--disable-extensions'`,
     'Disable the default arguments provided by Puppeteer. Use with caution.',
   ],
   ['$0 --no-category-emulation', 'Disable tools in the emulation category'],
@@ -399,11 +395,7 @@ export const CLI_EXAMPLES: Array<[string, string]> = [
   ['$0 --user-data-dir=/tmp/user-data-dir', 'Use a custom user data directory'],
   [
     '$0 --auto-connect',
-    'Connect to a stable Chrome instance (Chrome 144+) running instead of launching a new instance',
-  ],
-  [
-    '$0 --auto-connect --channel=canary',
-    'Connect to a canary Chrome instance (Chrome 144+) running instead of launching a new instance',
+    'Connect to a running Brave instance instead of launching a new instance',
   ],
   [
     '$0 --no-usage-statistics',
@@ -425,7 +417,7 @@ export const CLI_EXAMPLES: Array<[string, string]> = [
 ];
 
 export const CONFLICTING_ARGS: Array<Array<keyof McpOptions>> = [
-  ['channel', 'executablePath', 'browserUrl', 'wsEndpoint'],
+  ['executablePath', 'browserUrl', 'wsEndpoint'],
   ['userDataDir', 'browserUrl', 'wsEndpoint'],
   ['userDataDir', 'isolated'],
   ['autoConnect', 'isolated'],

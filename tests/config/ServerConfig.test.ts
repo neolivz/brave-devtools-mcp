@@ -50,9 +50,9 @@ describe('ServerConfig', () => {
         () =>
           ServerConfig.validateConflicts({
             browserUrl: 'http://localhost:9222',
-            channel: 'canary',
+            executablePath: '/bin/brave',
           }),
-        /Arguments channel and browserUrl are mutually exclusive/,
+        /Arguments executablePath and browserUrl are mutually exclusive/,
       );
     });
   });
@@ -93,7 +93,6 @@ describe('ServerConfig', () => {
       const args = ServerConfig.applyDefaults({headless: true}, {env: {}});
       assert.strictEqual(args.headless, true);
       assert.strictEqual(args.isolated, false);
-      assert.strictEqual(args.channel, 'stable');
       assert.strictEqual(args.categoryExtensions, undefined);
     });
 
@@ -102,19 +101,6 @@ describe('ServerConfig', () => {
       const config = parseConfig(['--unknownFlag=value']);
       assert.strictEqual('unknownFlag' in config.resolved, false);
     });
-
-    for (const explicitArgs of [
-      {browserUrl: 'http://localhost:9222'},
-      {wsEndpoint: 'ws://localhost:9222'},
-      {executablePath: '/tmp/chrome'},
-    ]) {
-      it(`does not default channel with ${Object.keys(explicitArgs)[0]}`, () => {
-        assert.strictEqual(
-          ServerConfig.applyDefaults(explicitArgs, {env: {}}).channel,
-          undefined,
-        );
-      });
-    }
 
     it('applies viaCli defaults when launching a browser', () => {
       const args = ServerConfig.applyDefaults(
@@ -200,7 +186,7 @@ describe('ServerConfig', () => {
       using configFile = createTempFile(
         JSON.stringify({
           browserUrl: 'http://localhost:9222',
-          channel: 'canary',
+          executablePath: '/bin/brave',
         }),
         'cd4a.conflict.config.json',
       );
@@ -217,7 +203,7 @@ describe('ServerConfig', () => {
 
       assert.throws(
         () => ciParser.parseConfig(),
-        /Arguments channel and browserUrl are mutually exclusive/,
+        /Arguments executablePath and browserUrl are mutually exclusive/,
       );
       sinon.assert.notCalled(consoleError);
 
@@ -432,13 +418,13 @@ describe('ServerConfig', () => {
     });
 
     it('compares restart-required array and object options by value', () => {
-      const previous = parseConfig(['--chromeArg=--foo']);
-      const same = parseConfig(['--chromeArg=--foo']);
-      const changed = parseConfig(['--chromeArg=--bar']);
+      const previous = parseConfig(['--braveArg=--foo']);
+      const same = parseConfig(['--braveArg=--foo']);
+      const changed = parseConfig(['--braveArg=--bar']);
 
       assert.deepStrictEqual(previous.getRestartRequiredChanges(same), []);
       assert.deepStrictEqual(previous.getRestartRequiredChanges(changed), [
-        'chromeArg',
+        'braveArg',
       ]);
     });
 
@@ -453,8 +439,6 @@ describe('ServerConfig', () => {
       assert.strictEqual(next.resolved.categoryExtensions, undefined);
       assert.strictEqual(previous.resolved.isolated, true);
       assert.strictEqual(next.resolved.isolated, false);
-      assert.strictEqual(previous.resolved.channel, 'stable');
-      assert.strictEqual(next.resolved.channel, undefined);
       assert.deepStrictEqual(previous.getRestartRequiredChanges(next), [
         'browserUrl',
       ]);

@@ -43,7 +43,6 @@ describe('mcp-options steps', () => {
       assert.strictEqual(args.headless, true);
       assert.deepStrictEqual(args.blockedUrlPattern, ['https://a.com/*']);
       assert.strictEqual(args.isolated, undefined);
-      assert.strictEqual(args.channel, undefined);
     });
 
     it('rejects unknown keys', () => {

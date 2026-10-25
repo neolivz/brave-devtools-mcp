@@ -94,10 +94,10 @@ describe('serializeArgs', () => {
   });
 
   it('should handle array values including hyphenated flags', () => {
-    const options: Record<string, YargsOptions> = {foo: {}, chromeArg: {}};
+    const options: Record<string, YargsOptions> = {foo: {}, braveArg: {}};
     const argv = {
       foo: ['val1', 'val2'],
-      chromeArg: [
+      braveArg: [
         '--use-fake-device-for-media-stream',
         '--use-file-for-fake-audio-capture=/tmp/test.wav',
       ],
@@ -108,8 +108,8 @@ describe('serializeArgs', () => {
     assert.deepStrictEqual(result, [
       '--foo=val1',
       '--foo=val2',
-      '--chrome-arg=--use-fake-device-for-media-stream',
-      '--chrome-arg=--use-file-for-fake-audio-capture=/tmp/test.wav',
+      '--brave-arg=--use-fake-device-for-media-stream',
+      '--brave-arg=--use-file-for-fake-audio-capture=/tmp/test.wav',
     ]);
   });
 

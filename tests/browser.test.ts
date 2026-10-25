@@ -5,6 +5,7 @@
  */
 
 import assert from 'node:assert';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {describe, it} from 'node:test';
@@ -14,6 +15,7 @@ import sinon from 'sinon';
 
 import {BrowserManager} from '../src/BrowserManager.js';
 import {puppeteer, type Browser} from '../src/third_party/index.js';
+import {getDefaultBraveUserDataDir} from '../src/utils/brave.js';
 
 import {
   createMockPuppeteerBrowser,
@@ -99,9 +101,9 @@ describe('browser', () => {
       const args = createMockServerConfig({
         headless: true,
         isolated: true,
-        channel: 'canary',
+        executablePath: '/path/to/brave',
         proxyServer: 'http://localhost:8080',
-        chromeArg: ['--custom-arg'],
+        braveArg: ['--custom-arg'],
       });
       const manager = new BrowserManager(args);
 
@@ -113,7 +115,7 @@ describe('browser', () => {
       sinon.assert.calledOnce(launchStub);
       sinon.assert.notCalled(connectStub);
       sinon.assert.calledWithMatch(launchStub, {
-        channel: 'chrome-canary',
+        executablePath: '/path/to/brave',
         headless: true,
         args: [
           '--custom-arg',
@@ -153,23 +155,22 @@ describe('browser', () => {
       await manager.close();
     });
 
-    it('does not pass a channel to Puppeteer when executablePath is set', async () => {
+    it('passes an explicit executablePath to Puppeteer without a channel', async () => {
       const pptrBrowser = createMockPuppeteerBrowser();
       const launchStub = sinon.stub(puppeteer, 'launch').resolves(pptrBrowser);
 
       const args = createMockServerConfig({
         isolated: true,
-        channel: 'stable',
-        executablePath: '/path/to/chrome',
+        executablePath: '/path/to/brave',
       });
       const manager = new BrowserManager(args);
 
       await manager.ensureBrowser();
 
       sinon.assert.calledOnceWithMatch(launchStub, {
-        channel: undefined,
-        executablePath: '/path/to/chrome',
+        executablePath: '/path/to/brave',
       });
+      assert.strictEqual(launchStub.firstCall.args[0]?.channel, undefined);
     });
 
     it('disables Puppeteer signal handlers so close() can shut the browser down gracefully', async () => {
@@ -197,7 +198,6 @@ describe('browser', () => {
 
       const args = createMockServerConfig({
         browserUrl: 'http://127.0.0.1:9222',
-        channel: 'stable',
       });
       const manager = new BrowserManager(args);
 
@@ -655,23 +655,41 @@ describe('browser', () => {
       });
     });
 
+    it('autoConnect without userDataDir uses the default Brave profile', async () => {
+      const pptrBrowser = createMockPuppeteerBrowser();
+      const readFileStub = sinon
+        .stub(fs.promises, 'readFile')
+        .resolves('9222\n/devtools/browser/abc\n');
+      const connectStub = sinon
+        .stub(puppeteer, 'connect')
+        .resolves(pptrBrowser);
+
+      const manager = new BrowserManager(
+        createMockServerConfig({autoConnect: true}),
+      );
+      await manager.ensureBrowser();
+
+      sinon.assert.calledOnceWithExactly(
+        readFileStub,
+        path.join(getDefaultBraveUserDataDir(), 'DevToolsActivePort'),
+        'utf8',
+      );
+      sinon.assert.calledOnceWithMatch(connectStub, {
+        browserWSEndpoint: 'ws://127.0.0.1:9222/devtools/browser/abc',
+      });
+      await manager.close();
+    });
+
     it('includes remote debugging hint and preserves cause when autoConnect fails without userDataDir', async () => {
-      const enoentError = Object.assign(
-        new Error(
-          "ENOENT: no such file or directory, open '/Users/test/Library/Application Support/Google/Chrome/DevToolsActivePort'",
-        ),
-        {code: 'ENOENT'},
-      );
-      const puppeteerError = new Error(
-        'Could not find DevToolsActivePort for chrome at /Users/test/Library/Application Support/Google/Chrome/DevToolsActivePort',
-        {cause: enoentError},
-      );
+      sinon
+        .stub(fs.promises, 'readFile')
+        .resolves('9222\n/devtools/browser/abc\n');
+      const puppeteerError = new Error('connect ECONNREFUSED 127.0.0.1:9222');
       sinon.stub(puppeteer, 'connect').rejects(puppeteerError);
 
       const manager = new BrowserManager(
         createMockServerConfig({
           autoConnect: true,
-          channel: 'stable',
         }),
       );
 
@@ -679,7 +697,7 @@ describe('browser', () => {
         assert.ok(err instanceof Error);
         assert.strictEqual(
           err.message,
-          'Could not connect to Chrome. Check if Chrome is running and remote debugging is enabled by going to chrome://inspect/#remote-debugging.',
+          'Could not connect to Brave. Check if Brave is running and remote debugging is enabled by going to brave://inspect/#remote-debugging.',
         );
         assert.strictEqual(err.cause, puppeteerError);
         return true;
@@ -843,7 +861,7 @@ describe('browser', () => {
           isolated: false,
           userDataDir: folderPath,
           executablePath: await executablePath(),
-          chromeArg: ['--remote-debugging-port=0'],
+          braveArg: ['--remote-debugging-port=0'],
         }),
       );
       const browser = await launchManager.ensureBrowser();

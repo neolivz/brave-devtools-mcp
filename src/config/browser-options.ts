@@ -15,10 +15,9 @@ export interface BrowserArguments {
   executablePath?: string;
   isolated: boolean;
   userDataDir?: string;
-  channel?: 'canary' | 'dev' | 'beta' | 'stable';
   proxyServer?: string;
-  chromeArg?: string[];
-  ignoreDefaultChromeArg?: string[];
+  braveArg?: string[];
+  ignoreDefaultBraveArg?: string[];
 }
 
 export type BrowserOptions = McpOptionsFor<BrowserArguments>;
@@ -27,13 +26,13 @@ export const browserOptions: BrowserOptions = {
   autoConnect: {
     type: 'boolean',
     description:
-      'If specified, automatically connects to a browser (Chrome 144+) running locally from the user data directory identified by the channel param (default channel is stable). Requires the remote debugging server to be started in the Chrome instance via chrome://inspect/#remote-debugging.',
+      'If specified, automatically connects to a Brave browser running locally from its default user data directory, or from --userDataDir if provided. Requires the remote debugging server to be started in the Brave instance via brave://inspect/#remote-debugging.',
     default: false,
   },
   browserUrl: {
     type: 'string',
     description:
-      'Connect to a running, debuggable Chrome instance (e.g. `http://127.0.0.1:9222`). For more details see: https://github.com/neolivz/brave-devtools-mcp/blob/main/docs/advanced-usage.md#connecting-to-a-running-chrome-instance.',
+      'Connect to a running, debuggable Brave instance (e.g. `http://127.0.0.1:9222`). For more details see: https://github.com/neolivz/brave-devtools-mcp/blob/main/docs/advanced-usage.md#connecting-to-a-running-chrome-instance.',
     alias: 'u',
     coerce: (url: string | undefined): string | undefined => {
       if (!url) {
@@ -50,7 +49,7 @@ export const browserOptions: BrowserOptions = {
   wsEndpoint: {
     type: 'string',
     description:
-      'WebSocket endpoint to connect to a running Chrome instance (e.g., ws://127.0.0.1:9222/devtools/browser/<id>). Alternative to --browserUrl.',
+      'WebSocket endpoint to connect to a running Brave instance (e.g., ws://127.0.0.1:9222/devtools/browser/<id>). Alternative to --browserUrl.',
     alias: 'w',
     coerce: (url: string | undefined): string | undefined => {
       if (!url) {
@@ -111,7 +110,8 @@ export const browserOptions: BrowserOptions = {
   },
   executablePath: {
     type: 'string',
-    description: 'Path to custom Chrome executable.',
+    description:
+      'Path to custom Brave executable. Auto-detected if not provided.',
     alias: 'e',
   },
   isolated: {
@@ -123,30 +123,23 @@ export const browserOptions: BrowserOptions = {
   userDataDir: {
     type: 'string',
     description:
-      'Path to the user data directory for Chrome. Default is $HOME/.cache/chrome-devtools-mcp/chrome-profile$CHANNEL_SUFFIX_IF_NON_STABLE',
-  },
-  channel: {
-    type: 'string',
-    description:
-      'Specify a different Chrome channel that should be used. The default is the stable channel version.',
-    choices: ['canary', 'dev', 'beta', 'stable'],
-    default: 'stable',
+      'Path to the user data directory for Brave. Default is $HOME/.cache/brave-devtools-mcp/brave-profile',
   },
   proxyServer: {
     type: 'string',
-    description: `Proxy server configuration for Chrome passed as --proxy-server when launching the browser. See https://www.chromium.org/developers/design-documents/network-settings/ for details.`,
+    description: `Proxy server configuration for Brave passed as --proxy-server when launching the browser. See https://www.chromium.org/developers/design-documents/network-settings/ for details.`,
   },
-  chromeArg: {
+  braveArg: {
     type: 'array',
     string: true,
     describe:
-      'Additional arguments for Chrome. Only applies when Chrome is launched by brave-devtools-mcp.',
+      'Additional arguments for Brave. Only applies when Brave is launched by brave-devtools-mcp.',
   },
-  ignoreDefaultChromeArg: {
+  ignoreDefaultBraveArg: {
     type: 'array',
     string: true,
     describe:
-      'Explicitly disable default arguments for Chrome. Only applies when Chrome is launched by brave-devtools-mcp.',
+      'Explicitly disable default arguments for Brave. Only applies when Brave is launched by brave-devtools-mcp.',
   },
 };
 

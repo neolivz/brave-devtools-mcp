@@ -85,7 +85,6 @@ describe('cli args parsing', () => {
     const args = parseConfig([]);
     assert.deepStrictEqual(args, {
       ...defaultArgs,
-      channel: 'stable',
     });
   });
 
@@ -132,7 +131,6 @@ describe('cli args parsing', () => {
     const args = parseConfig(['--user-data-dir', '/tmp/chrome-profile']);
     assert.deepStrictEqual(args, {
       ...defaultArgs,
-      channel: 'stable',
       userDataDir: '/tmp/chrome-profile',
     });
   });
@@ -141,7 +139,6 @@ describe('cli args parsing', () => {
     const args = parseConfig(['--browserUrl', ''], {});
     assert.deepStrictEqual(args, {
       ...defaultArgs,
-      channel: 'stable',
       browserUrl: undefined,
     });
   });
@@ -158,7 +155,6 @@ describe('cli args parsing', () => {
     const args = parseConfig(['--viewport', '888x777']);
     assert.deepStrictEqual(args, {
       ...defaultArgs,
-      channel: 'stable',
       viewport: {
         width: 888,
         height: 777,
@@ -191,13 +187,12 @@ describe('cli args parsing', () => {
 
   it('parses chrome args', async () => {
     const args = parseConfig([
-      `--chrome-arg='--no-sandbox'`,
-      `--chrome-arg='--disable-setuid-sandbox'`,
+      `--brave-arg='--no-sandbox'`,
+      `--brave-arg='--disable-setuid-sandbox'`,
     ]);
     assert.deepStrictEqual(args, {
       ...defaultArgs,
-      channel: 'stable',
-      chromeArg: ['--no-sandbox', '--disable-setuid-sandbox'],
+      braveArg: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
   });
 
@@ -320,13 +315,12 @@ describe('cli args parsing', () => {
 
   it('parses ignore chrome args', async () => {
     const args = parseConfig([
-      `--ignore-default-chrome-arg='--disable-extensions'`,
-      `--ignore-default-chrome-arg='--disable-cancel-all-touches'`,
+      `--ignore-default-brave-arg='--disable-extensions'`,
+      `--ignore-default-brave-arg='--disable-cancel-all-touches'`,
     ]);
     assert.deepStrictEqual(args, {
       ...defaultArgs,
-      channel: 'stable',
-      ignoreDefaultChromeArg: [
+      ignoreDefaultBraveArg: [
         '--disable-extensions',
         '--disable-cancel-all-touches',
       ],
@@ -372,7 +366,6 @@ describe('cli args parsing', () => {
     const args = parseConfig(['--no-category-emulation']);
     assert.deepStrictEqual(args, {
       ...defaultArgs,
-      channel: 'stable',
       categoryEmulation: false,
     });
   });
@@ -380,7 +373,6 @@ describe('cli args parsing', () => {
     const args = parseConfig(['--auto-connect'], {});
     assert.deepStrictEqual(args, {
       ...defaultArgs,
-      channel: 'stable',
       autoConnect: true,
     });
   });
@@ -404,7 +396,6 @@ describe('cli args parsing', () => {
     const args = parseConfig(['--screencast-fps=5']);
     assert.deepStrictEqual(args, {
       ...defaultArgs,
-      channel: 'stable',
       screencastFps: 5,
     });
   });
@@ -413,7 +404,6 @@ describe('cli args parsing', () => {
     const args = parseConfig(['--experimental-screencast-fps=5']);
     assert.deepStrictEqual(args, {
       ...defaultArgs,
-      channel: 'stable',
       screencastFps: 5,
     });
   });
@@ -902,11 +892,11 @@ describe('cli args parsing', () => {
 
   it('replaces config arrays with cli arrays instead of merging', async () => {
     using testConfig = createTempFile(
-      JSON.stringify({chromeArg: ['--a']}),
+      JSON.stringify({braveArg: ['--a']}),
       'cd4a.test.config.array-replace.json',
     );
-    const args = parseConfig(['--config', testConfig.path, '--chrome-arg=--b']);
-    assert.deepStrictEqual(args.chromeArg, ['--b']);
+    const args = parseConfig(['--config', testConfig.path, '--brave-arg=--b']);
+    assert.deepStrictEqual(args.braveArg, ['--b']);
   });
 
   it('lets the CI env disable usage statistics enabled in config', async () => {
@@ -1086,41 +1076,28 @@ describe('cli args parsing', () => {
       );
     });
 
-    it('rejects explicit channel with browserUrl', async () => {
+    it('rejects explicit executablePath with browserUrl', async () => {
       assert.throws(
         () =>
           parseConfig([
-            '--channel=canary',
+            '--executablePath=/bin/brave',
             '--browserUrl',
             'http://localhost:9222',
           ]),
-        /Arguments channel and browserUrl are mutually exclusive/,
+        /Arguments executablePath and browserUrl are mutually exclusive/,
       );
     });
 
-    it('rejects explicit channel with wsEndpoint', async () => {
+    it('rejects explicit executablePath with wsEndpoint', async () => {
       assert.throws(
         () =>
           parseConfig([
-            '--channel',
-            'canary',
+            '--executablePath',
+            '/bin/brave',
             '--wsEndpoint',
             'ws://localhost:9222',
           ]),
-        /Arguments channel and wsEndpoint are mutually exclusive/,
-      );
-    });
-
-    it('rejects explicit channel with executablePath', async () => {
-      assert.throws(
-        () =>
-          parseConfig([
-            '--channel',
-            'canary',
-            '--executablePath',
-            '/bin/chrome',
-          ]),
-        /Arguments channel and executablePath are mutually exclusive/,
+        /Arguments executablePath and wsEndpoint are mutually exclusive/,
       );
     });
 
@@ -1202,10 +1179,10 @@ describe('cli args parsing', () => {
       );
     });
 
-    it('rejects config-based channel with browserUrl', async () => {
+    it('rejects config-based executablePath with browserUrl', async () => {
       using testConfig = createTempFile(
-        JSON.stringify({channel: 'canary'}),
-        'cd4a.test.config.channel.json',
+        JSON.stringify({executablePath: '/bin/brave'}),
+        'cd4a.test.config.executable-path.json',
       );
       assert.throws(
         () =>
@@ -1215,18 +1192,24 @@ describe('cli args parsing', () => {
             '--browserUrl',
             'http://localhost:9222',
           ]),
-        /Arguments channel and browserUrl are mutually exclusive/,
+        /Arguments executablePath and browserUrl are mutually exclusive/,
       );
     });
 
-    it('rejects cli channel with config-based browserUrl', async () => {
+    it('rejects cli executablePath with config-based browserUrl', async () => {
       using testConfig = createTempFile(
         JSON.stringify({browserUrl: 'http://localhost:9222'}),
         'cd4a.test.config.browser-url.json',
       );
       assert.throws(
-        () => parseConfig(['--config', testConfig.path, '--channel', 'canary']),
-        /Arguments channel and browserUrl are mutually exclusive/,
+        () =>
+          parseConfig([
+            '--config',
+            testConfig.path,
+            '--executablePath',
+            '/bin/brave',
+          ]),
+        /Arguments executablePath and browserUrl are mutually exclusive/,
       );
     });
 
@@ -1293,17 +1276,6 @@ describe('cli args parsing', () => {
       it(`allows categoryExtensions with ${connectArgs[0]}`, async () => {
         const args = parseConfig(['--category-extensions', ...connectArgs]);
         assert.strictEqual(args.categoryExtensions, true);
-      });
-    }
-
-    for (const connectArgs of [
-      ['--browserUrl', 'http://localhost:9222'],
-      ['--wsEndpoint', 'ws://localhost:9222'],
-      ['--executablePath', '/tmp/chrome'],
-    ]) {
-      it(`does not default channel with ${connectArgs[0]}`, async () => {
-        const args = parseConfig(connectArgs);
-        assert.strictEqual(args.channel, undefined);
       });
     }
 
@@ -1543,26 +1515,6 @@ describe('cli literal args', () => {
 });
 
 describe('flag usage telemetry', () => {
-  it('reports the stable channel for a default launch', async () => {
-    const usage = computeFlagUsage(parseConfig([]), mcpOptions);
-    assert.strictEqual(usage.isolated_present, undefined);
-    assert.strictEqual(usage.channel_present, undefined);
-    assert.strictEqual(usage.channel, 'CHANNEL_STABLE');
-  });
-
-  for (const connectArgs of [
-    ['--browserUrl', 'http://localhost:9222'],
-    ['--wsEndpoint', 'ws://localhost:9222'],
-    ['--executablePath', '/tmp/chrome'],
-  ]) {
-    it(`does not report channel with ${connectArgs[0]}`, async () => {
-      const usage = computeFlagUsage(parseConfig(connectArgs), mcpOptions);
-      assert.strictEqual(usage.isolated_present, undefined);
-      assert.strictEqual(usage.channel_present, false);
-      assert.strictEqual(usage.channel, undefined);
-    });
-  }
-
   it('does not report experimentalDataFormat for legacy experimentalToonFormat', async () => {
     const usage = computeFlagUsage(
       parseConfig(['--experimentalToonFormat']),
