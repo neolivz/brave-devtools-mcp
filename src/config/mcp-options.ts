@@ -43,14 +43,10 @@ export interface McpArguments
   experimentalFfmpegPath?: string;
   screencastFps?: number;
   performanceCrux: boolean;
-  usageStatistics: boolean;
   javascriptEvaluation: boolean;
   fileNavigations: boolean;
   sourceMaps: boolean;
   maxNavigationSaved: number;
-  clearcutEndpoint?: string;
-  clearcutForceFlushIntervalMs?: number;
-  clearcutIncludePidHeader: boolean;
   slim: boolean;
   viaCli: boolean;
   redactNetworkHeaders: boolean;
@@ -191,12 +187,6 @@ export const mcpOptions: McpOptions = {
       'Set to false to disable sending URLs from performance traces to CrUX API to get field performance data.',
     reloadable: true,
   },
-  usageStatistics: {
-    type: 'boolean',
-    default: true,
-    describe:
-      'Set to false to opt-out of usage statistics collection. Google collects usage data to improve the tool, handled under the Google Privacy Policy (https://policies.google.com/privacy). This is independent from Chrome browser metrics. Disabled if `BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS` or `CI` env variables are set.',
-  },
   javascriptEvaluation: {
     type: 'boolean',
     default: true,
@@ -237,22 +227,6 @@ export const mcpOptions: McpOptions = {
       }
       return value;
     },
-  },
-  clearcutEndpoint: {
-    type: 'string',
-    hidden: true,
-    describe: 'Endpoint for Clearcut telemetry.',
-  },
-  clearcutForceFlushIntervalMs: {
-    type: 'number',
-    hidden: true,
-    describe: 'Force flush interval in milliseconds (for testing).',
-  },
-  clearcutIncludePidHeader: {
-    type: 'boolean',
-    default: false,
-    hidden: true,
-    describe: 'Include watchdog PID in Clearcut request headers (for testing).',
   },
   slim: {
     type: 'boolean',
@@ -396,10 +370,6 @@ export const CLI_EXAMPLES: Array<[string, string]> = [
   [
     '$0 --auto-connect',
     'Connect to a running Brave instance instead of launching a new instance',
-  ],
-  [
-    '$0 --no-usage-statistics',
-    'Do not send usage statistics https://github.com/neolivz/brave-devtools-mcp#usage-statistics.',
   ],
   [
     '$0 --no-performance-crux',

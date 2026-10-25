@@ -110,7 +110,6 @@ async function profileScenario(
       env[key] = value;
     }
   }
-  env.BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS = 'true';
 
   const transport = new StdioClientTransport({
     command: process.execPath,

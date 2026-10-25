@@ -1386,10 +1386,7 @@ export function stripUndefined<T extends object>(options: T): T {
 export function createMockParsedArguments(
   options: Partial<ParsedArguments> = {},
 ): ParsedArguments {
-  const defaultArgs = ServerConfig.applyDefaults(
-    {},
-    {suppressUsageStatisticsNotice: true},
-  );
+  const defaultArgs = ServerConfig.applyDefaults({});
   return {...defaultArgs, ...stripUndefined(options)};
 }
 

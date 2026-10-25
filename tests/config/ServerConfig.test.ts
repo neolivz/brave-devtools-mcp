@@ -153,69 +153,6 @@ describe('ServerConfig', () => {
       assert.strictEqual(args.slim, false);
       assert.strictEqual(args.pageIdRouting, true);
     });
-
-    it('turns off usage statistics in CI', () => {
-      sinon.stub(console, 'error');
-      const args = ServerConfig.applyDefaults(
-        {usageStatistics: true},
-        {env: {CI: 'true'}},
-      );
-      assert.strictEqual(args.usageStatistics, false);
-    });
-
-    it('prints the usage statistics notice once across reloads', () => {
-      const consoleError = sinon.stub(console, 'error');
-      const locator = new ConfigLocator();
-      sinon.stub(locator, 'locate').returns(undefined);
-      const ciParser = new ConfigParser(
-        '0.0.0',
-        ['node', 'main.js'],
-        {CI: 'true'},
-        false,
-        locator,
-      );
-
-      ciParser.parseConfig();
-      const reloaded = ciParser.reloadConfig();
-
-      assert.strictEqual(reloaded.resolved.usageStatistics, false);
-      sinon.assert.calledOnce(consoleError);
-    });
-
-    it('prints the usage statistics notice after a failed first parse', () => {
-      using configFile = createTempFile(
-        JSON.stringify({
-          browserUrl: 'http://localhost:9222',
-          executablePath: '/bin/brave',
-        }),
-        'cd4a.conflict.config.json',
-      );
-      const consoleError = sinon.stub(console, 'error');
-      const locator = new ConfigLocator();
-      sinon.stub(locator, 'locate').returns(configFile.path);
-      const ciParser = new ConfigParser(
-        '0.0.0',
-        ['node', 'main.js'],
-        {CI: 'true'},
-        false,
-        locator,
-      );
-
-      assert.throws(
-        () => ciParser.parseConfig(),
-        /Arguments executablePath and browserUrl are mutually exclusive/,
-      );
-      sinon.assert.notCalled(consoleError);
-
-      fs.writeFileSync(configFile.path, JSON.stringify({headless: true}));
-      const reloaded = ciParser.reloadConfig();
-
-      assert.strictEqual(reloaded.resolved.usageStatistics, false);
-      sinon.assert.calledOnceWithExactly(
-        consoleError,
-        "turning off usage statistics. process.env['CI'] || process.env['BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS'] is set.",
-      );
-    });
   });
 
   describe('mergeReloadable', () => {
@@ -334,13 +271,16 @@ describe('ServerConfig', () => {
       const initial = parseConfig();
       const next = parseConfig();
 
-      const mergedWithCi = initial.mergeReloadable(next, {
-        env: {CI: 'true'},
+      const mergedWithEnv = initial.mergeReloadable(next, {
+        env: {BRAVE_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY: 'true'},
       }).resolved;
-      const mergedWithoutCi = initial.mergeReloadable(next).resolved;
+      const mergedWithoutEnv = initial.mergeReloadable(next).resolved;
 
-      assert.strictEqual(mergedWithCi.usageStatistics, false);
-      assert.strictEqual(mergedWithoutCi.usageStatistics, true);
+      assert.strictEqual(mergedWithEnv.categoryExperimentalThirdParty, true);
+      assert.strictEqual(
+        mergedWithoutEnv.categoryExperimentalThirdParty,
+        undefined,
+      );
     });
   });
 
@@ -350,7 +290,6 @@ describe('ServerConfig', () => {
         cliArgs: {headless: true},
         fileArgs: {memoryDebugging: false},
         env: {},
-        suppressUsageStatisticsNotice: true,
       });
       const readonlyView: ReadonlyServerConfig = initial;
       const next = initial.mergeReloadable(
@@ -358,7 +297,6 @@ describe('ServerConfig', () => {
           cliArgs: {headless: true, slim: true},
           fileArgs: {memoryDebugging: true},
           env: {},
-          suppressUsageStatisticsNotice: true,
         }),
       );
 
@@ -378,15 +316,14 @@ describe('ServerConfig', () => {
         cliArgs: {headless: true},
         fileArgs: {memoryDebugging: false},
         configPath: '/tmp/cd4a.config.json',
-        env: {CI: 'true'},
-        suppressUsageStatisticsNotice: true,
+        env: {BRAVE_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY: 'true'},
       });
 
       const updated = initial.withFileArgs({memoryDebugging: true});
 
       assert.strictEqual(updated.resolved.headless, true);
       assert.strictEqual(updated.resolved.memoryDebugging, true);
-      assert.strictEqual(updated.resolved.usageStatistics, false);
+      assert.strictEqual(updated.resolved.categoryExperimentalThirdParty, true);
       assert.strictEqual(updated.configPath, '/tmp/cd4a.config.json');
     });
   });

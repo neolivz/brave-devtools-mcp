@@ -10,8 +10,6 @@ import process from 'node:process';
 
 import {BrowserManager} from '../BrowserManager.js';
 import {McpServer} from '../index.js';
-import {ClearcutLogger} from '../telemetry/ClearcutLogger.js';
-import {computeFlagUsage} from '../telemetry/flagUtils.js';
 import {StdioServerTransport} from '../third_party/index.js';
 import {checkForUpdates} from '../utils/check-for-updates.js';
 import {logDisclaimers} from '../utils/disclaimers.js';
@@ -19,12 +17,9 @@ import {logger, saveLogsToFile} from '../utils/logger.js';
 import {setupUnhandledRejectionHandler} from '../utils/errorHandling.js';
 import {VERSION} from '../version.js';
 
-import {mcpOptions} from '../config/mcp-options.js';
 import {ConfigParser} from '../config/ConfigParser.js';
 
-await checkForUpdates(
-  'Run `npm install brave-devtools-mcp@latest` to update.',
-);
+await checkForUpdates('Run `npm install brave-devtools-mcp@latest` to update.');
 
 const configParser = new ConfigParser(VERSION);
 const serverConfig = configParser.parseConfig();
@@ -36,7 +31,7 @@ setupUnhandledRejectionHandler(() => {
   process.exit(1);
 });
 
-logger?.(`Starting Chrome DevTools MCP Server v${VERSION}`);
+logger?.(`Starting Brave DevTools MCP Server v${VERSION}`);
 const browserManager = new BrowserManager(serverConfig, {
   logFile,
 });
@@ -86,7 +81,5 @@ process.on('SIGHUP', () => {
 const server = await serverPromise;
 const transport = new StdioServerTransport();
 await server.connect(transport);
-logger?.('Chrome DevTools MCP Server connected');
+logger?.('Brave DevTools MCP Server connected');
 logDisclaimers(args);
-void ClearcutLogger.get()?.logDailyActiveIfNeeded();
-void ClearcutLogger.get()?.logServerStart(computeFlagUsage(args, mcpOptions));

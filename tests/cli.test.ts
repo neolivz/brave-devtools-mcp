@@ -56,7 +56,6 @@ describe('cli args parsing', () => {
     isolated: false,
     acceptInsecureCerts: false,
     performanceCrux: true,
-    usageStatistics: true,
     javascriptEvaluation: true,
     fileNavigations: true,
     redactNetworkHeaders: false,
@@ -73,7 +72,6 @@ describe('cli args parsing', () => {
     pageIdRouting: true,
     sourceMaps: true,
     maxNavigationSaved: 3,
-    clearcutIncludePidHeader: false,
     screenshotFormat: 'png',
     slim: false,
     viaCli: false,
@@ -408,20 +406,6 @@ describe('cli args parsing', () => {
     });
   });
 
-  it('parses usage statistics flag', async () => {
-    // Test default (should be true).
-    const defaultArgs = parseConfig(['main.js'], {});
-    assert.strictEqual(defaultArgs.usageStatistics, true);
-
-    // Test enabling it
-    const enabledArgs = parseConfig(['--usage-statistics']);
-    assert.strictEqual(enabledArgs.usageStatistics, true);
-
-    // Test disabling it
-    const disabledArgs = parseConfig(['--no-usage-statistics']);
-    assert.strictEqual(disabledArgs.usageStatistics, false);
-  });
-
   it('parses javascript evaluation flag', async () => {
     // Test default (should be true).
     const defaultArgs = parseConfig(['main.js'], {});
@@ -452,26 +436,6 @@ describe('cli args parsing', () => {
     // The camelCase form is equivalent.
     const camelCaseArgs = parseConfig(['--fileNavigations=false']);
     assert.strictEqual(camelCaseArgs.fileNavigations, false);
-  });
-
-  it('respects env variable', async () => {
-    // Test default (should be true).
-    const defaultArgs = parseConfig(['main.js'], {
-      BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
-    });
-    assert.strictEqual(defaultArgs.usageStatistics, false);
-
-    // Test enabling it
-    const enabledArgs = parseConfig(['--usage-statistics'], {
-      BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
-    });
-    assert.strictEqual(enabledArgs.usageStatistics, false);
-
-    // Test disabling it
-    const disabledArgs = parseConfig(['--no-usage-statistics'], {
-      BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
-    });
-    assert.strictEqual(disabledArgs.usageStatistics, false);
   });
 
   it('respects BRAVE_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY env variable', async () => {
@@ -897,15 +861,6 @@ describe('cli args parsing', () => {
     );
     const args = parseConfig(['--config', testConfig.path, '--brave-arg=--b']);
     assert.deepStrictEqual(args.braveArg, ['--b']);
-  });
-
-  it('lets the CI env disable usage statistics enabled in config', async () => {
-    using testConfig = createTempFile(
-      JSON.stringify({usageStatistics: true}),
-      'cd4a.test.config.usage-statistics.json',
-    );
-    const args = parseConfig(['--config', testConfig.path], {CI: 'true'});
-    assert.strictEqual(args.usageStatistics, false);
   });
 
   it('lets explicit cli flags override viaCli dynamic defaults', async () => {

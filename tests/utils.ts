@@ -469,9 +469,7 @@ export function getMockBrowser(options?: {
   } as Browser;
 }
 
-export const CLI_PATH: string = path.resolve(
-  'build/src/bin/brave-devtools.js',
-);
+export const CLI_PATH: string = path.resolve('build/src/bin/brave-devtools.js');
 
 export async function runCli(
   args: string[],

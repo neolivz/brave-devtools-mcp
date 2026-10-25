@@ -86,7 +86,6 @@ async function runTests(attempt) {
       stdio: 'inherit',
       env: {
         ...process.env,
-        BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: true,
         BRAVE_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT: true,
         BRAVE_DEVTOOLS_MCP_NO_UPDATE_CHECKS: true,
         BRAVE_DEVTOOLS_MCP_NO_CONFIG_DISCOVERY: true,

@@ -19,8 +19,6 @@ import {ServerConfig} from './config/ServerConfig.js';
 import {loadIssueDescriptions} from './devtools/issueDescriptions.js';
 import {McpContext} from './McpContext.js';
 import {HeapSnapshotManager} from './processors/HeapSnapshotManager.js';
-import {ClearcutLogger} from './telemetry/ClearcutLogger.js';
-import {FilePersistence} from './telemetry/persistence.js';
 import {
   type CallToolResult,
   McpServer as SdkMcpServer,
@@ -89,23 +87,10 @@ export class McpServer {
   private constructor(config: ServerConfig, options: McpServerOptions) {
     this.#config = config;
     this.#browserManager = options.browserManager;
-    const serverArgs = this.#config.resolved;
-
-    if (serverArgs.usageStatistics) {
-      ClearcutLogger.initialize({
-        persistence: new FilePersistence(),
-        logFile: serverArgs.logFile,
-        appVersion: VERSION,
-        clearcutEndpoint: serverArgs.clearcutEndpoint,
-        clearcutForceFlushIntervalMs: serverArgs.clearcutForceFlushIntervalMs,
-        clearcutIncludePidHeader: serverArgs.clearcutIncludePidHeader,
-      });
-    }
-
     this.server = new SdkMcpServer(
       {
         name: 'brave_devtools',
-        title: 'Chrome DevTools MCP server',
+        title: 'Brave DevTools MCP server',
         version: VERSION,
       },
       {
@@ -128,10 +113,6 @@ export class McpServer {
     });
 
     this.server.server.oninitialized = () => {
-      const clientName = this.server.server.getClientVersion()?.name;
-      if (clientName) {
-        ClearcutLogger.get()?.setClientName(clientName);
-      }
       if (this.server.server.getClientCapabilities()?.roots) {
         void this.#updateRoots();
         this.server.server.setNotificationHandler(

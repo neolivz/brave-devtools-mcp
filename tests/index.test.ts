@@ -41,7 +41,7 @@ describe('e2e', {concurrency: true}, () => {
           await executablePath(),
           ...extraArgs,
         ],
-        env: {...process.env, BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true'},
+        env: process.env as Record<string, string>,
       });
       const client = new Client(
         {

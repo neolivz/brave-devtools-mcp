@@ -27,12 +27,4 @@ Avoid sharing sensitive or personal information that you do not want to share wi
   );
 
   logCruxDisclaimer(args);
-
-  if (!args.slim && args.usageStatistics) {
-    console.error(
-      `
-Google collects usage statistics to improve Chrome DevTools MCP. To opt-out, run with --no-usage-statistics.
-For more details, visit: https://github.com/neolivz/brave-devtools-mcp#usage-statistics`,
-    );
-  }
 };

@@ -99,7 +99,6 @@ export interface ServerConfigCreateOptions {
   fileArgs: Partial<ParsedArguments>;
   configPath?: string;
   env?: NodeJS.ProcessEnv;
-  suppressUsageStatisticsNotice?: boolean;
 }
 
 /**
@@ -169,7 +168,6 @@ export class ServerConfig implements ReadonlyServerConfig {
     explicitArgs: Partial<ParsedArguments>,
     options?: {
       env?: NodeJS.ProcessEnv;
-      suppressUsageStatisticsNotice?: boolean;
     },
   ): ParsedArguments {
     const env = options?.env ?? process.env;
@@ -209,15 +207,6 @@ export class ServerConfig implements ReadonlyServerConfig {
       }
     }
 
-    if (env['CI'] || env['BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS']) {
-      if (!options?.suppressUsageStatisticsNotice) {
-        console.error(
-          "turning off usage statistics. process.env['CI'] || process.env['BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS'] is set.",
-        );
-      }
-      resolvedArgs.usageStatistics = false;
-    }
-
     if (
       resolvedArgs.categoryExperimentalThirdParty === undefined &&
       env['BRAVE_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY']
@@ -242,7 +231,6 @@ export class ServerConfig implements ReadonlyServerConfig {
     ServerConfig.validateImplications(explicitArgs);
     const resolved = ServerConfig.applyDefaults(explicitArgs, {
       env: options.env,
-      suppressUsageStatisticsNotice: options.suppressUsageStatisticsNotice,
     });
     return new ServerConfig({
       cliArgs: options.cliArgs,
@@ -279,7 +267,6 @@ export class ServerConfig implements ReadonlyServerConfig {
       fileArgs,
       configPath: this.#configPath,
       env: this.#env,
-      suppressUsageStatisticsNotice: true,
     });
   }
 
@@ -299,7 +286,6 @@ export class ServerConfig implements ReadonlyServerConfig {
       fileArgs: mergedFileArgs,
       configPath: this.#configPath,
       env: options?.env ?? this.#env,
-      suppressUsageStatisticsNotice: true,
     });
   }
 

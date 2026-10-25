@@ -15,8 +15,17 @@ const PLUGIN_DATA = path.resolve('/plugins/data/chrome-devtools');
 const XDG_CONFIG_HOME = path.resolve('/xdg/config');
 
 const PLUGIN_CONFIG = path.join(PLUGIN_DATA, 'cd4a.config.json');
-const XDG_CONFIG = path.join(XDG_CONFIG_HOME, 'brave-devtools-mcp', 'config.json');
-const HOME_CONFIG = path.join(HOME, '.config', 'brave-devtools-mcp', 'config.json');
+const XDG_CONFIG = path.join(
+  XDG_CONFIG_HOME,
+  'brave-devtools-mcp',
+  'config.json',
+);
+const HOME_CONFIG = path.join(
+  HOME,
+  '.config',
+  'brave-devtools-mcp',
+  'config.json',
+);
 
 class TestConfigLocator extends ConfigLocator {
   #files: Set<string>;

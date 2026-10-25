@@ -7,7 +7,7 @@
 import assert from 'node:assert';
 import {ChildProcess} from 'node:child_process';
 import path from 'node:path';
-import {afterEach, describe, it} from 'node:test';
+import {describe, it} from 'node:test';
 import {pathToFileURL} from 'node:url';
 
 import sinon from 'sinon';
@@ -17,7 +17,6 @@ import {ConfigParser} from '../src/config/ConfigParser.js';
 import type {McpContext} from '../src/McpContext.js';
 import {McpPage} from '../src/McpPage.js';
 import {McpResponse, type DataFormat} from '../src/McpResponse.js';
-import {ClearcutLogger} from '../src/telemetry/ClearcutLogger.js';
 import {
   ProtocolError,
   ProtocolErrorCode,
@@ -31,7 +30,6 @@ import {
   type AnyToolDefinition,
   type BrowserlessToolDefinition,
   type DefinedPageTool,
-  type DevToolsData,
   type ToolDefinition,
 } from '../src/tools/ToolDefinition.js';
 import {evaluateScript} from '../src/tools/script.js';
@@ -46,19 +44,13 @@ describe('ToolHandler', () => {
     using guard = await queue.scheduleTask();
     await fn();
   }
-  afterEach(() => {
-    ClearcutLogger.resetForTesting();
-  });
-
   function parseConfig(argv: string[] = []) {
     const locator = new ConfigLocator();
     sinon.stub(locator, 'locate').returns(undefined);
     return new ConfigParser(
       '1.0.0',
       ['node', 'script.js', ...argv],
-      {
-        BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
-      },
+      {},
       false,
       locator,
     ).parseConfig();
@@ -179,7 +171,6 @@ describe('ToolHandler', () => {
     const result = await toolHandler.handle({});
 
     assert.strictEqual(mockContext.getDevToolsData.calledOnce, true);
-    assert.strictEqual(mockContext.getSelectedMcpPageUrl.calledOnce, true);
     assert.strictEqual(mockContext.getPageById.called, false);
     assert.strictEqual(handlerCalled, true);
     assert.strictEqual(result.isError, undefined);
@@ -719,91 +710,6 @@ describe('ToolHandler', () => {
       sinon.assert.calledOnceWithExactly(handleStub, mockContext, expected);
     });
   }
-
-  it('passes devToolsData and pageUrl to logger', async () => {
-    const baseTool: ToolDefinition = {
-      name: 'test_tool',
-      description: 'A test tool',
-      annotations: {
-        category: ToolCategory.NAVIGATION,
-        readOnlyHint: true,
-      },
-      schema: {},
-      blockedByDialog: false,
-      concurrency: 'exclusive',
-      verifyFilesSchema: {},
-      handler: async () => {
-        return;
-      },
-    };
-
-    const config = parseConfig(['--no-page-id-routing']);
-
-    const testCases: Array<{
-      tool: ToolDefinition | DefinedPageTool;
-      devToolsData: DevToolsData;
-      pageUrl?: string;
-    }> = [
-      {
-        tool: definePageTool(() => ({
-          ...baseTool,
-          name: 'page_tool',
-        }))(config.resolved),
-        devToolsData: {cdpBackendNodeId: 1},
-        pageUrl: 'http://localhost:9222/',
-      },
-      {
-        tool: {
-          ...baseTool,
-          name: 'global_tool',
-        },
-        devToolsData: {},
-        pageUrl: undefined,
-      },
-    ];
-
-    for (const testCase of testCases) {
-      let handlerCalled = false;
-      testCase.tool.handler = async () => {
-        handlerCalled = true;
-      };
-
-      const mockContext = createMockMcpContext();
-      const mockProcess = sinon.createStubInstance(ChildProcess);
-      mockContext.ensureBrowser.resolves(
-        getMockBrowser({process: mockProcess}),
-      );
-      mockContext.getDevToolsData.resolves(testCase.devToolsData);
-      if (testCase.pageUrl) {
-        mockContext.getSelectedMcpPageUrl.returns(testCase.pageUrl);
-      }
-
-      const logSpy = sinon.spy();
-      const getLoggerStub = sinon.stub(ClearcutLogger, 'get').returns({
-        logToolInvocation: logSpy,
-      } as unknown as ClearcutLogger);
-
-      const toolHandler = new ToolHandler(
-        testCase.tool,
-        config,
-        async () => mockContext,
-        sinon.spy(),
-      );
-
-      await toolHandler.handle({});
-
-      assert.strictEqual(logSpy.calledOnce, true);
-      assert.deepStrictEqual(
-        logSpy.firstCall.args[0].devToolsData,
-        testCase.devToolsData,
-      );
-      assert.strictEqual(logSpy.firstCall.args[0].pageUrl, testCase.pageUrl);
-      assert.strictEqual(handlerCalled, true);
-
-      getLoggerStub.restore();
-      ClearcutLogger.resetForTesting();
-    }
-  });
 
   it('rejects unknown registered tool arguments and sets additionalProperties to false', () => {
     const tool: ToolDefinition = {

@@ -15,12 +15,8 @@ import path from 'node:path';
 import process from 'node:process';
 
 import {BrowserManager} from '../BrowserManager.js';
-import {mcpOptions} from '../config/mcp-options.js';
-
 import {ConfigParser} from '../config/ConfigParser.js';
 import {McpServer} from '../index.js';
-import {ClearcutLogger} from '../telemetry/ClearcutLogger.js';
-import {computeFlagUsage} from '../telemetry/flagUtils.js';
 import {PipeTransport} from '../third_party/index.js';
 import {logger, puppeteerLogger, saveLogsToFile} from '../utils/logger.js';
 import {setupUnhandledRejectionHandler} from '../utils/errorHandling.js';
@@ -28,7 +24,6 @@ import {VERSION} from '../version.js';
 
 import type {DaemonMessage, DaemonStatusResult} from './types.js';
 import {
-  DAEMON_CLIENT_NAME,
   getPidFilePath,
   getSocketPath,
   IS_WINDOWS,
@@ -154,9 +149,6 @@ async function setupMCPServer(): Promise<void> {
   if (args.watchConfig) {
     mcpServer.watchConfig();
   }
-  ClearcutLogger.get()?.setClientName(DAEMON_CLIENT_NAME);
-  void ClearcutLogger.get()?.logDailyActiveIfNeeded();
-  void ClearcutLogger.get()?.logServerStart(computeFlagUsage(args, mcpOptions));
 }
 
 async function handleRequest(msg: DaemonMessage): Promise<{

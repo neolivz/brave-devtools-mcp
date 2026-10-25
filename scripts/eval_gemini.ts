@@ -108,7 +108,6 @@ async function runSingleScenario(
         env[key] = value;
       }
     });
-    env['BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS'] = 'true';
 
     const args = [serverPath, '--isolated'];
     if (!debug) {

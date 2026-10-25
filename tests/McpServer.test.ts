@@ -7,7 +7,7 @@
 import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
-import {afterEach, describe, it} from 'node:test';
+import {describe, it} from 'node:test';
 import {pathToFileURL} from 'node:url';
 
 import {Client, InMemoryTransport} from '@modelcontextprotocol/client';
@@ -21,7 +21,6 @@ import {ConfigWatcher} from '../src/config/ConfigWatcher.js';
 import {mcpOptions} from '../src/config/mcp-options.js';
 import {McpServer} from '../src/index.js';
 import {McpContext} from '../src/McpContext.js';
-import {ClearcutLogger} from '../src/telemetry/ClearcutLogger.js';
 import type {ToolCategory} from '../src/tools/categories.js';
 import type {ToolDefinition} from '../src/tools/ToolDefinition.js';
 import {saveLogsToFile} from '../src/utils/logger.js';
@@ -30,19 +29,13 @@ import {createMockMcpContext, createMockPuppeteerBrowser} from './mocks.js';
 import {createTempFile} from './utils.js';
 
 describe('McpServer', () => {
-  afterEach(() => {
-    ClearcutLogger.resetForTesting();
-  });
-
   function createConfigParser(argv: string[] = []) {
     const locator = new ConfigLocator();
     sinon.stub(locator, 'locate').returns(undefined);
     return new ConfigParser(
       '1.0.0',
       ['node', 'script.js', ...argv],
-      {
-        BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
-      },
+      {},
       false,
       locator,
     );

@@ -10,7 +10,6 @@ import type {McpContext} from './McpContext.js';
 import type {McpPage} from './McpPage.js';
 import {McpResponse, type DataFormat} from './McpResponse.js';
 import {SlimMcpResponse} from './SlimMcpResponse.js';
-import {ClearcutLogger} from './telemetry/ClearcutLogger.js';
 import {
   ProtocolError,
   ProtocolErrorCode,
@@ -28,7 +27,6 @@ import {
   type AnyToolDefinition,
   type BrowserlessToolDefinition,
   type DefinedPageTool,
-  type DevToolsData,
   type FileVerificationOption,
   type ToolDefinition,
 } from './tools/ToolDefinition.js';
@@ -377,10 +375,6 @@ export class ToolHandler {
     params: Record<string, unknown>,
     response: McpResponse,
     context: McpContext,
-    onTelemetryData: (
-      devToolsData: DevToolsData | undefined,
-      pageUrl: string | undefined,
-    ) => void,
   ): ReturnType<McpResponse['handle']> {
     // ensureBrowser() has no cancellation mechanism, so this timeout only
     // stops us from waiting — the attempt itself keeps running abandoned.
@@ -429,10 +423,8 @@ export class ToolHandler {
     } catch (err) {
       response.setError(err);
     }
-    onTelemetryData(
-      await context.getDevToolsData(page),
-      context.getSelectedMcpPageUrl(page),
-    );
+    // Also re-attaches the DevTools comment bridge when devtoolsComments is on.
+    await context.getDevToolsData(page);
     return await response.handle(
       context,
       this.#dataFormat(this.#config.resolved),
@@ -495,10 +487,6 @@ export class ToolHandler {
     }
     const params = parseResult.data;
 
-    const startTime = Date.now();
-    let success = false;
-    let devToolsData: DevToolsData | undefined;
-    let pageUrl: string | undefined;
     try {
       logger?.(`${tool.name} request: ${JSON.stringify(params, null, '  ')}`);
       const response = isSlimTool(tool)
@@ -506,16 +494,7 @@ export class ToolHandler {
         : new McpResponse(this.#config);
       const {content, structuredContent} = isBrowserlessTool(tool)
         ? await this.#runBrowserlessTool(tool, params, response, context)
-        : await this.#runBrowserTool(
-            tool,
-            params,
-            response,
-            context,
-            (data, url) => {
-              devToolsData = data;
-              pageUrl = url;
-            },
-          );
+        : await this.#runBrowserTool(tool, params, response, context);
       const result: CallToolResult & {
         structuredContent?: Record<string, unknown>;
       } = {
@@ -524,7 +503,6 @@ export class ToolHandler {
       if (response.error) {
         result.isError = true;
       }
-      success = true;
       if (this.#config.resolved.experimentalStructuredContent) {
         result.structuredContent = structuredContent as Record<string, unknown>;
       }
@@ -549,16 +527,6 @@ export class ToolHandler {
         cause = 'cause' in cause ? cause.cause : undefined;
       }
       return errorResult(errorText);
-    } finally {
-      void ClearcutLogger.get()?.logToolInvocation({
-        toolName: tool.name,
-        params,
-        schema: tool.schema,
-        success,
-        latencyMs: Date.now() - startTime,
-        devToolsData,
-        pageUrl,
-      });
     }
   };
 }

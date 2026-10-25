@@ -33,7 +33,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 export class ConfigParser {
   #configPath?: string;
   #cliArgs?: Partial<ParsedArguments>;
-  #usageStatisticsNoticeShown = false;
   readonly configLocator: ConfigLocator;
 
   constructor(
@@ -183,14 +182,11 @@ export class ConfigParser {
   #resolveConfig(cliArgs: Partial<ParsedArguments>): ServerConfig {
     const configPath = this.#configPath;
     const fileArgs = configPath ? this.parseConfigFile(configPath) : {};
-    const config = ServerConfig.create({
+    return ServerConfig.create({
       cliArgs,
       fileArgs,
       configPath,
       env: this.env,
-      suppressUsageStatisticsNotice: this.#usageStatisticsNoticeShown,
     });
-    this.#usageStatisticsNoticeShown = true;
-    return config;
   }
 }

@@ -14,8 +14,7 @@ export const CONFIG_FILE_NAME = 'cd4a.config.json';
  * Turns off config file discovery, for example in tests. A config file passed
  * via `--config` is still used.
  */
-export const NO_CONFIG_DISCOVERY_ENV =
-  'BRAVE_DEVTOOLS_MCP_NO_CONFIG_DISCOVERY';
+export const NO_CONFIG_DISCOVERY_ENV = 'BRAVE_DEVTOOLS_MCP_NO_CONFIG_DISCOVERY';
 
 function isFile(filePath: string): boolean {
   try {
