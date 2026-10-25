@@ -134,7 +134,7 @@ let mcpServer: McpServer | null = null;
 let server: Server | null = null;
 
 async function setupMCPServer(): Promise<void> {
-  logger?.(`Starting Chrome DevTools MCP Server v${VERSION}`);
+  logger?.(`Starting Brave DevTools MCP Server v${VERSION}`);
   const configParser = new ConfigParser(VERSION);
   const serverConfig = configParser.parseConfig();
   const args = serverConfig.resolved;

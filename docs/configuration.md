@@ -65,16 +65,16 @@ The Chrome DevTools MCP server supports the following configuration option:
   - **Default:** `false`
 
 - **`--autoConnect`/ `--auto-connect`**
-  If specified, automatically connects to a browser (Chrome 144+) running locally from the user data directory identified by the channel param (default channel is stable). Requires the remote debugging server to be started in the Chrome instance via chrome://inspect/#remote-debugging.
+  If specified, automatically connects to a Brave browser running locally from its default user data directory, or from --userDataDir if provided. Requires the remote debugging server to be started in the Brave instance via brave://inspect/#remote-debugging.
   - **Type:** boolean
   - **Default:** `false`
 
 - **`--browserUrl`/ `--browser-url`, `-u`**
-  Connect to a running, debuggable Chrome instance (e.g. `http://127.0.0.1:9222`). For more details see: https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/advanced-usage.md#connecting-to-a-running-chrome-instance.
+  Connect to a running, debuggable Brave instance (e.g. `http://127.0.0.1:9222`). For more details see: https://github.com/neolivz/brave-devtools-mcp/blob/main/docs/advanced-usage.md#connecting-to-a-running-chrome-instance.
   - **Type:** string
 
 - **`--wsEndpoint`/ `--ws-endpoint`, `-w`**
-  WebSocket endpoint to connect to a running Chrome instance (e.g., ws://127.0.0.1:9222/devtools/browser/<id>). Alternative to --browserUrl.
+  WebSocket endpoint to connect to a running Brave instance (e.g., ws://127.0.0.1:9222/devtools/browser/<id>). Alternative to --browserUrl.
   - **Type:** string
 
 - **`--wsHeaders`/ `--ws-headers`**
@@ -87,7 +87,7 @@ The Chrome DevTools MCP server supports the following configuration option:
   - **Default:** `false`
 
 - **`--executablePath`/ `--executable-path`, `-e`**
-  Path to custom Chrome executable.
+  Path to custom Brave executable. Auto-detected if not provided.
   - **Type:** string
 
 - **`--isolated`**
@@ -96,29 +96,23 @@ The Chrome DevTools MCP server supports the following configuration option:
   - **Default:** `false`
 
 - **`--userDataDir`/ `--user-data-dir`**
-  Path to the user data directory for Chrome. Default is $HOME/.cache/chrome-devtools-mcp/chrome-profile$CHANNEL_SUFFIX_IF_NON_STABLE
+  Path to the user data directory for Brave. Default is $HOME/.cache/brave-devtools-mcp/brave-profile
   - **Type:** string
-
-- **`--channel`**
-  Specify a different Chrome channel that should be used. The default is the stable channel version.
-  - **Type:** string
-  - **Choices:** `canary`, `dev`, `beta`, `stable`
-  - **Default:** `stable`
 
 - **`--proxyServer`/ `--proxy-server`**
-  Proxy server configuration for Chrome passed as --proxy-server when launching the browser. See https://www.chromium.org/developers/design-documents/network-settings/ for details.
+  Proxy server configuration for Brave passed as --proxy-server when launching the browser. See https://www.chromium.org/developers/design-documents/network-settings/ for details.
   - **Type:** string
 
-- **`--chromeArg`/ `--chrome-arg`**
-  Additional arguments for Chrome. Only applies when Chrome is launched by chrome-devtools-mcp.
+- **`--braveArg`/ `--brave-arg`**
+  Additional arguments for Brave. Only applies when Brave is launched by brave-devtools-mcp.
   - **Type:** array
 
-- **`--ignoreDefaultChromeArg`/ `--ignore-default-chrome-arg`**
-  Explicitly disable default arguments for Chrome. Only applies when Chrome is launched by chrome-devtools-mcp.
+- **`--ignoreDefaultBraveArg`/ `--ignore-default-brave-arg`**
+  Explicitly disable default arguments for Brave. Only applies when Brave is launched by brave-devtools-mcp.
   - **Type:** array
 
 - **`--viewport`**
-  Initial viewport size for the Chrome instances started by the server. For example, `1280x720`. In headless mode, max size is 3840x2160px.
+  Initial viewport size for the Brave instances started by the server. For example, `1280x720`. In headless mode, max size is 3840x2160px.
   - **Type:** string
 
 - **`--acceptInsecureCerts`/ `--accept-insecure-certs`**
@@ -201,11 +195,6 @@ The Chrome DevTools MCP server supports the following configuration option:
 
 - **`--performanceCrux`/ `--performance-crux`**
   Set to false to disable sending URLs from performance traces to CrUX API to get field performance data.
-  - **Type:** boolean
-  - **Default:** `true`
-
-- **`--usageStatistics`/ `--usage-statistics`**
-  Set to false to opt-out of usage statistics collection. Google collects usage data to improve the tool, handled under the Google Privacy Policy (https://policies.google.com/privacy). This is independent from Chrome browser metrics. Disabled if `CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS` or `CI` env variables are set.
   - **Type:** boolean
   - **Default:** `true`
 

@@ -711,7 +711,7 @@ in the DevTools Elements panel (if any).
 
 ### `install_extension`
 
-**Description:** Installs a Chrome extension from the given path. (requires flag: --categoryExtensions=true)
+**Description:** Installs a Brave extension from the given path. (requires flag: --categoryExtensions=true)
 
 **Parameters:**
 
@@ -721,7 +721,7 @@ in the DevTools Elements panel (if any).
 
 ### `list_extensions`
 
-**Description:** Lists all the Chrome extensions installed in the browser. This includes their name, ID, version, and enabled status. (requires flag: --categoryExtensions=true)
+**Description:** Lists all the Brave extensions installed in the browser. This includes their name, ID, version, and enabled status. (requires flag: --categoryExtensions=true)
 
 **Parameters:** None
 
@@ -729,7 +729,7 @@ in the DevTools Elements panel (if any).
 
 ### `reload_extension`
 
-**Description:** Reloads an unpacked Chrome extension by its ID. (requires flag: --categoryExtensions=true)
+**Description:** Reloads an unpacked Brave extension by its ID. (requires flag: --categoryExtensions=true)
 
 **Parameters:**
 
@@ -749,7 +749,7 @@ in the DevTools Elements panel (if any).
 
 ### `uninstall_extension`
 
-**Description:** Uninstalls a Chrome extension by its ID. (requires flag: --categoryExtensions=true)
+**Description:** Uninstalls a Brave extension by its ID. (requires flag: --categoryExtensions=true)
 
 **Parameters:**
 

@@ -154,7 +154,7 @@ export const startScreencast: PageToolFactory = definePageTool(
         }
         if (message.includes('Page.startScreenRecording')) {
           throw new Error(
-            'The connected Chrome does not support screen recording. Update Chrome to a newer version.',
+            'The connected Brave does not support screen recording. Update Brave to a newer version.',
           );
         }
         throw err;

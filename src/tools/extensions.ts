@@ -11,7 +11,7 @@ import {defineTool, type ToolFactory} from './ToolDefinition.js';
 
 export const installExtension: ToolFactory = defineTool(() => ({
   name: 'install_extension',
-  description: 'Installs a Chrome extension from the given path.',
+  description: 'Installs a Brave extension from the given path.',
   annotations: {
     category: ToolCategory.EXTENSIONS,
     readOnlyHint: false,
@@ -35,7 +35,7 @@ export const installExtension: ToolFactory = defineTool(() => ({
 
 export const uninstallExtension: ToolFactory = defineTool(() => ({
   name: 'uninstall_extension',
-  description: 'Uninstalls a Chrome extension by its ID.',
+  description: 'Uninstalls a Brave extension by its ID.',
   annotations: {
     category: ToolCategory.EXTENSIONS,
     readOnlyHint: false,
@@ -56,7 +56,7 @@ export const uninstallExtension: ToolFactory = defineTool(() => ({
 export const listExtensions: ToolFactory = defineTool(() => ({
   name: 'list_extensions',
   description:
-    'Lists all the Chrome extensions installed in the browser. This includes their name, ID, version, and enabled status.',
+    'Lists all the Brave extensions installed in the browser. This includes their name, ID, version, and enabled status.',
   annotations: {
     category: ToolCategory.EXTENSIONS,
     readOnlyHint: true,
@@ -72,7 +72,7 @@ export const listExtensions: ToolFactory = defineTool(() => ({
 
 export const reloadExtension: ToolFactory = defineTool(() => ({
   name: 'reload_extension',
-  description: 'Reloads an unpacked Chrome extension by its ID.',
+  description: 'Reloads an unpacked Brave extension by its ID.',
   annotations: {
     category: ToolCategory.EXTENSIONS,
     readOnlyHint: false,

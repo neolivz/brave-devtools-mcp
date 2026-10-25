@@ -185,7 +185,7 @@ describe('screencast', () => {
 
       await assert.rejects(
         startScreencast(args).handler({params: {}, page}, response, context),
-        /The connected Chrome does not support screen recording/,
+        /The connected Brave does not support screen recording/,
       );
 
       const tempPath = page.pptrPage.record.firstCall.args[0]?.path;

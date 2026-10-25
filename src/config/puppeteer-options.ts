@@ -33,7 +33,7 @@ export const puppeteerOptions: PuppeteerOptions = {
   viewport: {
     type: 'string',
     describe:
-      'Initial viewport size for the Chrome instances started by the server. For example, `1280x720`. In headless mode, max size is 3840x2160px.',
+      'Initial viewport size for the Brave instances started by the server. For example, `1280x720`. In headless mode, max size is 3840x2160px.',
     coerce: (
       arg: string | undefined,
     ): {width: number; height: number} | undefined => {

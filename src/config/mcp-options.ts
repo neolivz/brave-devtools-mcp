@@ -239,7 +239,7 @@ export const mcpOptions: McpOptions = {
     type: 'boolean',
     default: false,
     describe:
-      'Set by Chrome DevTools CLI if the MCP server is started via the CLI client (this arg exists for usage stats)',
+      'Set by Brave DevTools CLI if the MCP server is started via the CLI client.',
     hidden: true,
   },
   redactNetworkHeaders: {

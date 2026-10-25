@@ -15,7 +15,7 @@ export type CommentThreadPayload = CD4ACommentThread;
 export type RevealTargetPayload = CD4ARevealTarget;
 
 const DEVTOOLS_COMMENTS_UNAVAILABLE_MESSAGE =
-  'DevTools comments are not working right now. Possible reasons: the connected Chrome version does not support DevTools comments, the feature is disabled, or the DevTools window has not finished loading. Try again later, or continue without DevTools comments.';
+  'DevTools comments are not working right now. Possible reasons: the connected Brave version does not support DevTools comments, the feature is disabled, or the DevTools window has not finished loading. Try again later, or continue without DevTools comments.';
 
 export const openDevtools: PageToolFactory = definePageTool(() => ({
   name: 'open_devtools',
