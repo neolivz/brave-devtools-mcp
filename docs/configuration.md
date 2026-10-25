@@ -288,15 +288,15 @@ from highest to lowest priority. Config files are not merged.
 2. `cd4a.config.json` in the `$PLUGIN_DATA` directory, when running as an
    [agent plugin](https://agent-plugins.org/specification).
 3. The global config file:
-   - macOS and Linux: `$XDG_CONFIG_HOME/cd4a/config.json`, falling back to
-     `~/.config/cd4a/config.json`.
-   - Windows: `%LOCALAPPDATA%/Google/cd4a/config.json`, falling back to
-     `~/.config/cd4a/config.json`.
+   - macOS and Linux: `$XDG_CONFIG_HOME/brave-devtools-mcp/config.json`, falling back to
+     `~/.config/brave-devtools-mcp/config.json`.
+   - Windows: `%LOCALAPPDATA%/brave-devtools-mcp/config.json`, falling back to
+     `~/.config/brave-devtools-mcp/config.json`.
 
 Flags passed on the command line take precedence over the values in the config
 file.
 
-Set the `CHROME_DEVTOOLS_MCP_NO_CONFIG_DISCOVERY` env variable to turn off the
+Set the `BRAVE_DEVTOOLS_MCP_NO_CONFIG_DISCOVERY` env variable to turn off the
 search for config files, for example in tests. A config file passed via
 `--config` is still used.
 

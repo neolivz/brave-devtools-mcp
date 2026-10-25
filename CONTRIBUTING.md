@@ -72,8 +72,8 @@ are any changes on the main branch that show up in the changelog.
 Check that you are using node version specified in .nvmrc, then run following commands:
 
 ```sh
-git clone https://github.com/ChromeDevTools/chrome-devtools-mcp.git
-cd chrome-devtools-mcp
+git clone https://github.com/neolivz/brave-devtools-mcp.git
+cd brave-devtools-mcp
 npm ci
 npm run build
 ```
@@ -81,7 +81,7 @@ npm run build
 ### Testing with @modelcontextprotocol/inspector
 
 ```sh
-npx @modelcontextprotocol/inspector node ./build/src/bin/chrome-devtools-mcp.js
+npx @modelcontextprotocol/inspector node ./build/src/bin/brave-devtools-mcp.js
 ```
 
 ### Testing with an MCP client
@@ -91,10 +91,10 @@ Add the MCP server to your client's config.
 ```json
 {
   "mcpServers": {
-    "chrome-devtools": {
+    "brave-devtools": {
       "command": "node",
       "args": [
-        "/<path-to-chrome-devtools-mcp>/build/src/bin/chrome-devtools-mcp.js"
+        "/<path-to-brave-devtools-mcp>/build/src/bin/brave-devtools-mcp.js"
       ]
     }
   }
@@ -111,7 +111,7 @@ Usually VS Code automatically detects and forwards `6274` but fails to detect `6
 To write debug logs to `log.txt` in the working directory, run with the following commands:
 
 ```sh
-npx @modelcontextprotocol/inspector node ./build/src/bin/chrome-devtools-mcp.js --log-file=/your/desired/path/log.txt
+npx @modelcontextprotocol/inspector node ./build/src/bin/brave-devtools-mcp.js --log-file=/your/desired/path/log.txt
 ```
 
 You can use the `NODE_DEBUG` environment variable as usual to control categories that are logged.
