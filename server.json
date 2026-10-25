@@ -1,19 +1,19 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.neolivz/brave-devtools-mcp",
-  "title": "Brave DevTools MCP",
-  "description": "MCP server for Brave DevTools",
+  "name": "io.github.ChromeDevTools/chrome-devtools-mcp",
+  "title": "Chrome DevTools MCP",
+  "description": "MCP server for Chrome DevTools",
   "repository": {
-    "url": "https://github.com/neolivz/brave-devtools-mcp",
+    "url": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
     "source": "github"
   },
-  "version": "0.21.0",
+  "version": "1.12.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "brave-devtools-mcp",
-      "version": "0.21.0",
+      "identifier": "chrome-devtools-mcp",
+      "version": "1.12.0",
       "transport": {
         "type": "stdio"
       },

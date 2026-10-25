@@ -7,11 +7,15 @@
 import {zod} from '../third_party/index.js';
 
 import {ToolCategory} from './categories.js';
-import {definePageTool, timeoutSchema} from './ToolDefinition.js';
+import {
+  definePageTool,
+  type PageToolFactory,
+  timeoutSchema,
+} from './ToolDefinition.js';
 
-export const takeSnapshot = definePageTool({
+export const takeSnapshot: PageToolFactory = definePageTool(() => ({
   name: 'take_snapshot',
-  description: `Take a text snapshot of the currently selected page based on the a11y tree. The snapshot lists page elements along with a unique
+  description: `Take a text snapshot of the target page based on the a11y tree. The snapshot lists page elements along with a unique
 identifier (uid). Always use the latest snapshot. Prefer taking a snapshot over taking a screenshot. The snapshot indicates the element selected
 in the DevTools Elements panel (if any).`,
   annotations: {
@@ -33,17 +37,22 @@ in the DevTools Elements panel (if any).`,
         'The absolute path, or a path relative to the current working directory, to save the snapshot to instead of attaching it to the response.',
       ),
   },
+  blockedByDialog: true,
+  concurrency: 'page',
+  verifyFilesSchema: {
+    filePath: true,
+  },
   handler: async (request, response) => {
     response.includeSnapshot({
       verbose: request.params.verbose ?? false,
       filePath: request.params.filePath,
     });
   },
-});
+}));
 
-export const waitFor = definePageTool({
+export const waitFor: PageToolFactory = definePageTool(() => ({
   name: 'wait_for',
-  description: `Wait for the specified text to appear on the selected page.`,
+  description: `Wait for the specified text to appear on the selected page. By default, hidden text is also matched. Set visible to true to wait until the matched text is visible.`,
   annotations: {
     category: ToolCategory.NAVIGATION,
     readOnlyHint: true,
@@ -56,14 +65,23 @@ export const waitFor = definePageTool({
         'Non-empty list of texts. Resolves when any value appears on the page.',
       ),
     ...timeoutSchema,
+    visible: zod
+      .boolean()
+      .default(false)
+      .optional()
+      .describe(
+        'If true, wait until the matching text is visible. By default, hidden text also counts.',
+      ),
   },
-  handler: async (request, response, context) => {
+  blockedByDialog: true,
+  concurrency: 'page',
+  verifyFilesSchema: {},
+  handler: async (request, response) => {
     const page = request.page;
-    await context.waitForTextOnPage(
-      request.params.text,
-      request.params.timeout,
-      page.pptrPage,
-    );
+    await page.waitForTextOnPage(request.params.text, {
+      timeout: request.params.timeout,
+      visible: request.params.visible,
+    });
 
     response.appendResponseLine(
       `Element matching one of ${JSON.stringify(request.params.text)} found.`,
@@ -71,4 +89,4 @@ export const waitFor = definePageTool({
 
     response.includeSnapshot();
   },
-});
+}));

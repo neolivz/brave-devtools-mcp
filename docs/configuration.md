@@ -1,0 +1,364 @@
+# Configuration
+
+The Chrome DevTools MCP server supports the following configuration option:
+
+<!-- BEGIN AUTO GENERATED OPTIONS -->
+
+- **`--categoryInput`/ `--category-input`**
+  Set to false to exclude tools related to input.
+  - **Type:** boolean
+  - **Default:** `true`
+
+- **`--categoryNavigation`/ `--category-navigation`**
+  Set to false to exclude tools related to navigation.
+  - **Type:** boolean
+  - **Default:** `true`
+
+- **`--categoryEmulation`/ `--category-emulation`**
+  Set to false to exclude tools related to emulation.
+  - **Type:** boolean
+  - **Default:** `true`
+
+- **`--categoryPerformance`/ `--category-performance`**
+  Set to false to exclude tools related to performance.
+  - **Type:** boolean
+  - **Default:** `true`
+
+- **`--categoryNetwork`/ `--category-network`**
+  Set to false to exclude tools related to network.
+  - **Type:** boolean
+  - **Default:** `true`
+
+- **`--categoryDebugging`/ `--category-debugging`**
+  Set to false to exclude tools related to debugging.
+  - **Type:** boolean
+  - **Default:** `true`
+
+- **`--categoryExtensions`/ `--category-extensions`**
+  Set to true to include tools related to extensions.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--categoryExperimentalThirdParty`/ `--category-experimental-third-party`**
+  Set to true to enable third-party developer tools exposed by the inspected page itself (via WebMCP or devtoolstooldiscovery)
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--categoryMemory`/ `--category-memory`**
+  Set to false to exclude tools related to memory.
+  - **Type:** boolean
+  - **Default:** `true`
+
+- **`--categoryExperimentalWebmcp`/ `--category-experimental-webmcp`**
+  Set to true to enable WebMCP tools (excluding debugging tools, which are exposed under the third-party developer tools category). Requires Chrome 150+ with the following flag: `--enable-features=WebMCP`
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--categoryPwa`/ `--category-pwa`**
+  Set to true to include tools for automating Progressive Web Apps (install, launch, uninstall, and OS state). This feature is only supported with a pipe connection; autoConnect, browserUrl, and wsEndpoint are not supported.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--categoryWebauthn`/ `--category-webauthn`**
+  Set to true to include a tool that manages virtual WebAuthn authenticators, for testing passkey and security key flows.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--autoConnect`/ `--auto-connect`**
+  If specified, automatically connects to a browser (Chrome 144+) running locally from the user data directory identified by the channel param (default channel is stable). Requires the remote debugging server to be started in the Chrome instance via chrome://inspect/#remote-debugging.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--browserUrl`/ `--browser-url`, `-u`**
+  Connect to a running, debuggable Chrome instance (e.g. `http://127.0.0.1:9222`). For more details see: https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/advanced-usage.md#connecting-to-a-running-chrome-instance.
+  - **Type:** string
+
+- **`--wsEndpoint`/ `--ws-endpoint`, `-w`**
+  WebSocket endpoint to connect to a running Chrome instance (e.g., ws://127.0.0.1:9222/devtools/browser/<id>). Alternative to --browserUrl.
+  - **Type:** string
+
+- **`--wsHeaders`/ `--ws-headers`**
+  Custom headers for WebSocket connection in JSON format (e.g., '{"Authorization":"Bearer token"}'). Only works with --wsEndpoint.
+  - **Type:** string
+
+- **`--headless`**
+  Whether to run in headless (no UI) mode.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--executablePath`/ `--executable-path`, `-e`**
+  Path to custom Chrome executable.
+  - **Type:** string
+
+- **`--isolated`**
+  If specified, creates a temporary user-data-dir that is automatically cleaned up after the browser is closed. Defaults to false.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--userDataDir`/ `--user-data-dir`**
+  Path to the user data directory for Chrome. Default is $HOME/.cache/chrome-devtools-mcp/chrome-profile$CHANNEL_SUFFIX_IF_NON_STABLE
+  - **Type:** string
+
+- **`--channel`**
+  Specify a different Chrome channel that should be used. The default is the stable channel version.
+  - **Type:** string
+  - **Choices:** `canary`, `dev`, `beta`, `stable`
+  - **Default:** `stable`
+
+- **`--proxyServer`/ `--proxy-server`**
+  Proxy server configuration for Chrome passed as --proxy-server when launching the browser. See https://www.chromium.org/developers/design-documents/network-settings/ for details.
+  - **Type:** string
+
+- **`--chromeArg`/ `--chrome-arg`**
+  Additional arguments for Chrome. Only applies when Chrome is launched by chrome-devtools-mcp.
+  - **Type:** array
+
+- **`--ignoreDefaultChromeArg`/ `--ignore-default-chrome-arg`**
+  Explicitly disable default arguments for Chrome. Only applies when Chrome is launched by chrome-devtools-mcp.
+  - **Type:** array
+
+- **`--viewport`**
+  Initial viewport size for the Chrome instances started by the server. For example, `1280x720`. In headless mode, max size is 3840x2160px.
+  - **Type:** string
+
+- **`--acceptInsecureCerts`/ `--accept-insecure-certs`**
+  If enabled, ignores errors relative to self-signed and expired certificates. Use with caution.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--blockedUrlPattern`/ `--blocked-url-pattern`**
+  Restricts browser's network access by blocking specified URL patterns (uses https://urlpattern.spec.whatwg.org/). Silently detaches from targets with blocked URLs upon connection, and blocks runtime requests (including navigations and subresources); targets already open when patterns are updated via --watchConfig remain attached. Accepts an array of patterns. A pattern that uses a regexp group, a named group (`:name`), or a partial IPv4 wildcard (for example `(127\.\d+\.\d+\.\d+)`, `*://127.0.0.1::port/*`, or `*://127.0.0.*/*`) is rejected, because it is not enforced on redirects or subresources; use an exact value or a `*` wildcard instead. Patterns follow URL Pattern defaults: an omitted port matches only the scheme's default port (for example, `https://internal.corp/*` does not match `https://internal.corp:8443/`; use `https://internal.corp:*/*` to match any port), and the hostname must match exactly (a trailing-dot host such as `internal.corp.` is a different hostname).
+  - **Type:** array
+
+- **`--allowedUrlPattern`/ `--allowed-url-pattern`**
+  Restricts browser's network access by allowing only specified URL patterns (uses https://urlpattern.spec.whatwg.org/). Requires Chrome 149+. Silently detaches from targets with unallowed URLs upon connection, and blocks runtime requests (including navigations and subresources); targets already open when patterns are updated via --watchConfig remain attached. Accepts an array of patterns. A pattern that uses a regexp group, a named group (`:name`), or a partial IPv4 wildcard (for example `(127\.\d+\.\d+\.\d+)`, `*://127.0.0.1::port/*`, or `*://127.0.0.*/*`) is rejected, because it is not enforced on redirects or subresources; use an exact value or a `*` wildcard instead. Patterns follow URL Pattern defaults: an omitted port matches only the scheme's default port (for example, `https://internal.corp/*` does not match `https://internal.corp:8443/`; use `https://internal.corp:*/*` to match any port), and the hostname must match exactly (a trailing-dot host such as `internal.corp.` is a different hostname).
+  - **Type:** array
+
+- **`--screenshotFormat`/ `--screenshot-format`**
+  Override the default output format used by take_screenshot when the caller does not specify one. JPEG and WebP are ~3-5x smaller than PNG, which reduces transfer and storage size. To reduce context size use --screenshotMaxWidth / --screenshotMaxHeight, since image tokens scale with dimensions rather than encoded bytes. Unset preserves the existing default ("png").
+  - **Type:** string
+  - **Choices:** `jpeg`, `png`, `webp`
+  - **Default:** `png`
+
+- **`--screenshotQuality`/ `--screenshot-quality`**
+  Override the default compression quality (0-100) used by take_screenshot for JPEG and WebP when the caller does not specify one. Lower values mean smaller files. Ignored for PNG. Unset preserves the Puppeteer default.
+  - **Type:** number
+
+- **`--screenshotMaxWidth`/ `--screenshot-max-width`**
+  Maximum width in pixels for screenshots. If the captured image is wider, it is downscaled (preserving aspect ratio) before being returned. Reduces context size in AI conversations. Unset means no resize.
+  - **Type:** number
+
+- **`--screenshotMaxHeight`/ `--screenshot-max-height`**
+  Maximum height in pixels for screenshots. If the captured image is taller, it is downscaled (preserving aspect ratio) before being returned. Can be combined with --screenshot-max-width; the smaller scale factor wins. Unset means no resize.
+  - **Type:** number
+
+- **`--logFile`/ `--log-file`**
+  Path to a file to write debug logs to. Set the env variable `NODE_DEBUG` to `*` to enable verbose logs. Useful for submitting bug reports.
+  - **Type:** string
+
+- **`--pageIdRouting`/ `--page-id-routing`**
+  Require pageId on page-scoped tools and route requests by page ID (useful for concurrent agent sessions). Use --no-page-id-routing to disable.
+  - **Type:** boolean
+  - **Default:** `true`
+
+- **`--experimentalDevtools`/ `--experimental-devtools`**
+  Whether to enable automation over DevTools targets. This exposes the DevTools UI to input tools, including the Console, which can evaluate JavaScript in the inspected page. --no-javascript-evaluation does not restrict this path.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--experimentalVision`/ `--experimental-vision`**
+  Whether to enable coordinate-based tools such as click_at(x,y). Usually requires a computer-use model able to produce accurate coordinates by looking at screenshots.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--memoryDebugging`/ `--memory-debugging`, `--experimentalMemory`**
+  Whether to enable memory debugging tools.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--experimentalStructuredContent`/ `--experimental-structured-content`**
+  Whether to output structured formatted content.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--experimentalIncludeAllPages`/ `--experimental-include-all-pages`**
+  Whether to include all kinds of pages such as webviews or background pages as pages.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--experimentalScreencast`/ `--experimental-screencast`**
+  Use the legacy ffmpeg-based screencast implementation instead of the built-in Chrome recorder. Install ffmpeg https://www.ffmpeg.org/download.html and ensure it is available in the MCP server PATH. This option is deprecated and will be removed in favour of dependency-free screencast commands that are available by default.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--experimentalFfmpegPath`/ `--experimental-ffmpeg-path`**
+  Path to ffmpeg executable for legacy screencast recording (requires --experimentalScreencast).
+  - **Type:** string
+
+- **`--screencastFps`/ `--screencast-fps`, `--experimentalScreencastFps`**
+  Frames per second to use for screencast recording. Lower values reduce file size and encoding load.
+  - **Type:** number
+
+- **`--performanceCrux`/ `--performance-crux`**
+  Set to false to disable sending URLs from performance traces to CrUX API to get field performance data.
+  - **Type:** boolean
+  - **Default:** `true`
+
+- **`--usageStatistics`/ `--usage-statistics`**
+  Set to false to opt-out of usage statistics collection. Google collects usage data to improve the tool, handled under the Google Privacy Policy (https://policies.google.com/privacy). This is independent from Chrome browser metrics. Disabled if `CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS` or `CI` env variables are set.
+  - **Type:** boolean
+  - **Default:** `true`
+
+- **`--javascriptEvaluation`/ `--javascript-evaluation`**
+  Set to false to disable the server entry points for evaluating caller-provided JavaScript: evaluation tools (evaluate_script and slim evaluate) are disabled, the initScript parameter in navigate_page is turned off, and navigating to javascript:, data:, or vbscript: URLs is disallowed. This is not a JavaScript sandbox: page scripts and JavaScript triggered through other permitted browser interactions (e.g. clicks or typing) still run. If --experimentalDevtools is also enabled, the DevTools UI, including the Console that evaluates code in the inspected page, can be automated and is not restricted by this option. The client remains responsible for validating tool calls and parameters.
+  - **Type:** boolean
+  - **Default:** `true`
+
+- **`--fileNavigations`/ `--file-navigations`**
+  Set to false to disallow navigating to file: URLs. When disabled, new_page, navigate_page and the slim navigate tool reject file: URLs, including view-source: URLs that target them. This restricts navigations the server performs. It is not a filesystem sandbox: it does not affect pages the browser already had open when the server connected, and the browser can reach the filesystem by other means. Use OS sandboxing for full filesystem confinement.
+  - **Type:** boolean
+  - **Default:** `true`
+
+- **`--sourceMaps`/ `--source-maps`**
+  Whether to enable source maps in DevTools. Use --no-source-maps to disable.
+  - **Type:** boolean
+  - **Default:** `true`
+
+- **`--maxNavigationSaved`/ `--max-navigation-saved`**
+  Number of navigations (including the current one) for which network requests and console messages are retained per page. Must be between 1 and 25. For earlier navigations, request URLs, status codes, and request and response headers are retained, which is sufficient to trace redirect hops, but response bodies are generally no longer available.
+  - **Type:** number
+  - **Default:** `3`
+
+- **`--slim`**
+  Exposes a "slim" set of 3 tools covering navigation, script execution and screenshots only. Useful for basic browser tasks.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--redactNetworkHeaders`/ `--redact-network-headers`**
+  If true, redacts some of the network headers considered sensitive before returning to the client.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--allowUnrestrictedPaths`/ `--allow-unrestricted-paths`**
+  If set, disables the default path restriction that applies when the MCP client does not negotiate the roots capability. By default, tools that read or write local files are restricted to the OS temp directory when no roots are configured. Use this only when connecting a trusted local client that does not implement MCP roots and requires access to paths outside the temp directory.
+  - **Type:** boolean
+  - **Default:** `false`
+
+- **`--filesystemRoot`/ `--filesystem-root`, `--workspace`**
+  A directory that filesystem tools are allowed to access. May be specified more than once.
+  - **Type:** array
+  - **Default:** `OS temp directory`
+
+- **`--config`**
+  Path to JSON configuration file.
+  - **Type:** string
+
+- **`--watchConfig`/ `--watch-config`**
+  Watch the config file for changes and apply them without restarting. Tools (except --categoryExtensions) are enabled, disabled and updated on the fly; options used to launch or connect to the browser still require a restart.
+  - **Type:** boolean
+  - **Default:** `false`
+
+<!-- END AUTO GENERATED OPTIONS -->
+
+Pass them via the `args` property in the JSON configuration. For example:
+
+```json
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "chrome-devtools-mcp@latest",
+        "--channel=canary",
+        "--headless=true",
+        "--isolated=true"
+      ]
+    }
+  }
+}
+```
+
+## Configuration file
+
+Instead of passing flags, you can put the options in a JSON file. Keys use the
+camelCase option names:
+
+```json
+{
+  "headless": true,
+  "channel": "canary",
+  "memoryDebugging": true,
+  "blockedUrlPattern": ["*://*.example.com/*"]
+}
+```
+
+The server uses the first config file it finds in the following locations,
+from highest to lowest priority. Config files are not merged.
+
+1. The path passed via `--config`.
+2. `cd4a.config.json` in the `$PLUGIN_DATA` directory, when running as an
+   [agent plugin](https://agent-plugins.org/specification).
+3. The global config file:
+   - macOS and Linux: `$XDG_CONFIG_HOME/cd4a/config.json`, falling back to
+     `~/.config/cd4a/config.json`.
+   - Windows: `%LOCALAPPDATA%/Google/cd4a/config.json`, falling back to
+     `~/.config/cd4a/config.json`.
+
+Flags passed on the command line take precedence over the values in the config
+file.
+
+Set the `CHROME_DEVTOOLS_MCP_NO_CONFIG_DISCOVERY` env variable to turn off the
+search for config files, for example in tests. A config file passed via
+`--config` is still used.
+
+### Applying changes without a restart
+
+Pass `--watchConfig` to reload the config file whenever it changes. Watching is
+off by default. On a change, the server re-reads the file, updates the list of
+available tools, and notifies the MCP client with
+`notifications/tools/list_changed`. If the new file is invalid, the server logs
+the error to stderr and keeps the previous configuration.
+
+Tool categories (except `categoryExtensions`), network URL restrictions
+(`blockedUrlPattern`, `allowedUrlPattern`), and tool-specific options apply
+immediately. When `blockedUrlPattern` or `allowedUrlPattern` is updated on the
+fly, future requests and navigations are restricted, but targets already open on
+a newly disallowed URL remain attached. Options that launch or connect to the
+browser, such as `headless`, `channel`, `viewport`, or `categoryExtensions`,
+only apply after restarting chrome-devtools-mcp. The server logs a message to
+stderr when a change requires a restart.
+
+### Locking down the configuration file from agent access
+
+> [!WARNING]
+> Ensure that the configuration file and its parent directory are not writable
+> by the agent.
+
+The configuration file can set security-sensitive options such as
+`executablePath`, `chromeArg`, `allowedUrlPattern`, `blockedUrlPattern`, etc.
+If an agent can create or modify the configuration file in any of the
+discovered locations (or at the path passed via `--config`), it can alter
+these settings to bypass restrictions.
+
+## Connecting via WebSocket with custom headers
+
+You can connect directly to a Chrome WebSocket endpoint and include custom headers (e.g., for authentication):
+
+```json
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "chrome-devtools-mcp@latest",
+        "--wsEndpoint=ws://127.0.0.1:9222/devtools/browser/<id>",
+        "--wsHeaders={\"Authorization\":\"Bearer YOUR_TOKEN\"}"
+      ]
+    }
+  }
+}
+```
+
+To get the WebSocket endpoint from a running Chrome instance, visit `http://127.0.0.1:9222/json/version` and look for the `webSocketDebuggerUrl` field.
+
+You can also run `npx chrome-devtools-mcp@latest --help` to see all available configuration options.

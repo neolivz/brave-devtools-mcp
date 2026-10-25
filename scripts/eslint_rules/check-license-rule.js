@@ -29,7 +29,7 @@ export default {
   },
   defaultOptions: [],
   create(context) {
-    const sourceCode = context.getSourceCode();
+    const sourceCode = context.sourceCode;
     const comments = sourceCode.getAllComments();
     let insertAfter = [0, 0];
     let header = null;
@@ -55,7 +55,7 @@ export default {
 
     return {
       Program(node) {
-        if (context.getFilename().endsWith('.json')) {
+        if (context.filename.endsWith('.json')) {
           return;
         }
 
@@ -73,7 +73,7 @@ export default {
             nextToken.loc.start.line === header.loc.end.line + 1
           ) {
             context.report({
-              node: node,
+              node,
               loc: header.loc,
               messageId: 'emptyLine',
               fix(fixer) {
@@ -87,7 +87,7 @@ export default {
         // Add header license
         if (!header || !header.value.includes('@license')) {
           context.report({
-            node: node,
+            node,
             messageId: 'licenseRule',
             fix(fixer) {
               return fixer.insertTextAfterRange(insertAfter, licenseHeader);

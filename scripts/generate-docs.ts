@@ -6,90 +6,46 @@
 
 import fs from 'node:fs';
 
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
-import type {Tool} from '@modelcontextprotocol/sdk/types.js';
-import {get_encoding} from 'tiktoken';
+import type {Options as YargsOptions} from 'yargs';
 
-import {cliOptions} from '../build/src/bin/chrome-devtools-mcp-cli-options.js';
-import type {ParsedArguments} from '../build/src/bin/chrome-devtools-mcp-cli-options.js';
+import {
+  mcpOptions,
+  type ParsedArguments,
+} from '../build/src/config/mcp-options.js';
+import {
+  isCategoryOffByDefault,
+  categoryToFlagName,
+} from '../build/src/config/category-options.js';
+import {zod} from '../build/src/third_party/index.js';
 import {ToolCategory, labels} from '../build/src/tools/categories.js';
-import {createTools} from '../build/src/tools/tools.js';
+import {isSlimTool} from '../build/src/tools/ToolDefinition.js';
+import type {AnyToolDefinition} from '../src/tools/ToolDefinition.js';
+import {createTools, requiresHiddenFlag} from '../build/src/tools/tools.js';
 
 const OUTPUT_PATH = './docs/tool-reference.md';
 const SLIM_OUTPUT_PATH = './docs/slim-tool-reference.md';
-const README_PATH = './README.md';
-
-async function measureServer(args: string[]) {
-  // 1. Connect to your actual MCP server
-  const transport = new StdioClientTransport({
-    command: 'node',
-    args: ['./build/src/bin/chrome-devtools-mcp.js', ...args], // Point to your built MCP server
-  });
-
-  const client = new Client(
-    {name: 'measurer', version: '1.0.0'},
-    {capabilities: {}},
-  );
-  await client.connect(transport);
-
-  // 2. Fetch all tools
-  const toolsList = await client.listTools();
-
-  // 3. Serialize exactly how an LLM would see it (JSON)
-  const jsonString = JSON.stringify(toolsList.tools, null, 2);
-
-  // 4. Count tokens (using cl100k_base which is standard for GPT-4/Claude-3.5 approximation)
-  const enc = get_encoding('cl100k_base');
-  const tokenCount = enc.encode(jsonString).length;
-
-  console.log(`--- Measurement Results ---`);
-  console.log(`Total Tools: ${toolsList.tools.length}`);
-  console.log(`JSON Character Count: ${jsonString.length}`);
-  console.log(`Estimated Token Count: ~${tokenCount}`);
-
-  // Clean up
-  enc.free();
-  await client.close();
-  return {
-    tokenCount,
-  };
-}
-
-// Extend the MCP Tool type to include our annotations
-interface ToolWithAnnotations extends Tool {
-  annotations?: {
-    title?: string;
-    category?: typeof ToolCategory;
-    conditions?: string[];
-  };
-}
-
-interface ZodCheck {
-  kind: string;
-}
-
-interface ZodDef {
-  typeName: string;
-  checks?: ZodCheck[];
-  values?: string[];
-  type?: ZodSchema;
-  innerType?: ZodSchema;
-  schema?: ZodSchema;
-  defaultValue?: () => unknown;
-}
-
-interface ZodSchema {
-  _def: ZodDef;
-  description?: string;
-}
 
 interface TypeInfo {
-  type: string;
+  type?: string;
   enum?: string[];
   items?: TypeInfo;
   description?: string;
   default?: unknown;
+}
+
+interface ToolWithAnnotations {
+  name: string;
+  description: string;
+  inputSchema: {
+    type?: string;
+    properties?: Record<string, TypeInfo>;
+    required?: string[];
+  };
+  annotations?: {
+    title?: string;
+    category?: ToolCategory;
+    conditions?: Array<keyof ParsedArguments>;
+  };
 }
 
 function escapeHtmlTags(text: string): string {
@@ -126,61 +82,47 @@ function addCrossLinks(text: string, tools: ToolWithAnnotations[]): string {
   return result;
 }
 
-function generateToolsTOC(
-  categories: Record<string, ToolWithAnnotations[]>,
-  sortedCategories: string[],
-): string {
-  let toc = '';
-
-  for (const category of sortedCategories) {
-    const categoryTools = categories[category];
-    const categoryName = labels[category];
-    toc += `- **${categoryName}** (${categoryTools.length} tools)\n`;
-
-    // Sort tools within category for TOC
-    categoryTools.sort((a: Tool, b: Tool) => a.name.localeCompare(b.name));
-    for (const tool of categoryTools) {
-      const anchorLink = tool.name.toLowerCase();
-      toc += `  - [\`${tool.name}\`](docs/tool-reference.md#${anchorLink})\n`;
+function hasOffByDefaultConditions(tool: ToolWithAnnotations): boolean {
+  for (const condition of tool.annotations?.conditions || []) {
+    if (condition === 'slim') {
+      continue;
+    }
+    const option = mcpOptions[condition];
+    if (!option || !('default' in option) || option.default !== true) {
+      return true;
     }
   }
-
-  return toc;
+  return false;
 }
 
-function updateReadmeWithToolsTOC(toolsTOC: string): void {
-  const readmeContent = fs.readFileSync(README_PATH, 'utf8');
+function sortTools(a: ToolWithAnnotations, b: ToolWithAnnotations): number {
+  const aHasConditions = hasOffByDefaultConditions(a);
+  const bHasConditions = hasOffByDefaultConditions(b);
 
-  const beginMarker = '<!-- BEGIN AUTO GENERATED TOOLS -->';
-  const endMarker = '<!-- END AUTO GENERATED TOOLS -->';
-
-  const beginIndex = readmeContent.indexOf(beginMarker);
-  const endIndex = readmeContent.indexOf(endMarker);
-
-  if (beginIndex === -1 || endIndex === -1) {
-    console.warn('Could not find auto-generated tools markers in README.md');
-    return;
+  if (aHasConditions && !bHasConditions) {
+    return 1;
+  }
+  if (!aHasConditions && bHasConditions) {
+    return -1;
   }
 
-  const before = readmeContent.substring(0, beginIndex + beginMarker.length);
-  const after = readmeContent.substring(endIndex);
-
-  const updatedContent = before + '\n\n' + toolsTOC + '\n' + after;
-
-  fs.writeFileSync(README_PATH, updatedContent);
-  console.log('Updated README.md with tools table of contents');
+  return a.name.localeCompare(b.name);
 }
 
 function generateConfigOptionsMarkdown(): string {
   let markdown = '';
 
-  for (const [optionName, optionConfig] of Object.entries(cliOptions)) {
+  for (const [optionName, optionConfig] of Object.entries(
+    mcpOptions as Record<string, Partial<YargsOptions>>,
+  )) {
     // Skip hidden options
     if (optionConfig.hidden) {
       continue;
     }
 
-    const aliasText = optionConfig.alias ? `, \`-${optionConfig.alias}\`` : '';
+    const aliasText = optionConfig.alias
+      ? `, \`${optionConfig.alias.length === 1 ? '-' : '--'}${optionConfig.alias}\``
+      : '';
     const description = optionConfig.description || optionConfig.describe || '';
 
     // Convert camelCase to dash-case
@@ -204,9 +146,12 @@ function generateConfigOptionsMarkdown(): string {
       markdown += `  - **Choices:** ${optionConfig.choices.map(c => `\`${c}\``).join(', ')}\n`;
     }
 
-    // Add default if available
-    if (optionConfig.default !== undefined) {
-      markdown += `  - **Default:** \`${optionConfig.default}\`\n`;
+    const defaultValue =
+      optionConfig.defaultDescription ?? optionConfig.default;
+    if (defaultValue !== undefined) {
+      markdown += `  - **Default:** \`${defaultValue}\`\n`;
+    } else if (optionConfig.type === 'boolean') {
+      markdown += `  - **Default:** \`false\`\n`;
     }
 
     markdown += '\n';
@@ -215,8 +160,9 @@ function generateConfigOptionsMarkdown(): string {
   return markdown.trim();
 }
 
-function updateReadmeWithOptionsMarkdown(optionsMarkdown: string): void {
-  const readmeContent = fs.readFileSync(README_PATH, 'utf8');
+function updateConfigurationWithOptionsMarkdown(optionsMarkdown: string): void {
+  const configPath = './docs/configuration.md';
+  const readmeContent = fs.readFileSync(configPath, 'utf8');
 
   const beginMarker = '<!-- BEGIN AUTO GENERATED OPTIONS -->';
   const endMarker = '<!-- END AUTO GENERATED OPTIONS -->';
@@ -225,7 +171,9 @@ function updateReadmeWithOptionsMarkdown(optionsMarkdown: string): void {
   const endIndex = readmeContent.indexOf(endMarker);
 
   if (beginIndex === -1 || endIndex === -1) {
-    console.warn('Could not find auto-generated options markers in README.md');
+    console.warn(
+      'Could not find auto-generated options markers in ./docs/configuration.md',
+    );
     return;
   }
 
@@ -234,82 +182,8 @@ function updateReadmeWithOptionsMarkdown(optionsMarkdown: string): void {
 
   const updatedContent = before + '\n\n' + optionsMarkdown + '\n\n' + after;
 
-  fs.writeFileSync(README_PATH, updatedContent);
-  console.log('Updated README.md with options markdown');
-}
-
-// Helper to convert Zod schema to JSON schema-like object for docs
-function getZodTypeInfo(schema: ZodSchema): TypeInfo {
-  let description = schema.description;
-  let def = schema._def;
-  let defaultValue: unknown;
-
-  // Unwrap optional/default/effects
-  while (
-    def.typeName === 'ZodOptional' ||
-    def.typeName === 'ZodDefault' ||
-    def.typeName === 'ZodEffects'
-  ) {
-    if (def.typeName === 'ZodDefault' && def.defaultValue) {
-      defaultValue = def.defaultValue();
-    }
-    const next = def.innerType || def.schema;
-    if (!next) {
-      break;
-    }
-    schema = next;
-    def = schema._def;
-    if (!description && schema.description) {
-      description = schema.description;
-    }
-  }
-
-  const result: TypeInfo = {type: 'unknown'};
-  if (description) {
-    result.description = description;
-  }
-  if (defaultValue !== undefined) {
-    result.default = defaultValue;
-  }
-
-  switch (def.typeName) {
-    case 'ZodString':
-      result.type = 'string';
-      break;
-    case 'ZodNumber':
-      result.type = def.checks?.some((c: ZodCheck) => c.kind === 'int')
-        ? 'integer'
-        : 'number';
-      break;
-    case 'ZodBoolean':
-      result.type = 'boolean';
-      break;
-    case 'ZodEnum':
-      result.type = 'string';
-      result.enum = def.values;
-      break;
-    case 'ZodArray':
-      result.type = 'array';
-      if (def.type) {
-        result.items = getZodTypeInfo(def.type);
-      }
-      break;
-    default:
-      result.type = 'unknown';
-  }
-  return result;
-}
-
-function isRequired(schema: ZodSchema): boolean {
-  let def = schema._def;
-  while (def.typeName === 'ZodEffects') {
-    if (!def.schema) {
-      break;
-    }
-    schema = def.schema;
-    def = schema._def;
-  }
-  return def.typeName !== 'ZodOptional' && def.typeName !== 'ZodDefault';
+  fs.writeFileSync(configPath, updatedContent);
+  console.log('Updated configuration.md with options markdown');
 }
 
 async function generateReference(
@@ -318,14 +192,13 @@ async function generateReference(
   toolsWithAnnotations: ToolWithAnnotations[],
   categories: Record<string, ToolWithAnnotations[]>,
   sortedCategories: string[],
-  serverArgs: string[],
 ) {
   console.log(`Found ${toolsWithAnnotations.length} tools`);
 
   // Generate markdown documentation
   let markdown = `<!-- AUTO GENERATED DO NOT EDIT - run 'npm run gen' to update-->
 
-# ${title} (~${(await measureServer(serverArgs)).tokenCount} cl100k_base tokens)
+# ${title}
 
 `;
   // Generate table of contents
@@ -336,7 +209,7 @@ async function generateReference(
     markdown += `- **[${categoryName}](#${anchorName})** (${categoryTools.length} tools)\n`;
 
     // Sort tools within category for TOC
-    categoryTools.sort((a: Tool, b: Tool) => a.name.localeCompare(b.name));
+    categoryTools.sort(sortTools);
     for (const tool of categoryTools) {
       // Generate proper markdown anchor link: backticks are removed, keep underscores, lowercase
       const anchorLink = tool.name.toLowerCase();
@@ -351,8 +224,14 @@ async function generateReference(
 
     markdown += `## ${categoryName}\n\n`;
 
+    if (isCategoryOffByDefault(category)) {
+      const flagName = `--${categoryToFlagName(category)}`;
+
+      markdown += `> NOTE: The ${categoryName} category is not active by default. Use the '${flagName}' flag.\n\n`;
+    }
+
     // Sort tools within category
-    categoryTools.sort((a: Tool, b: Tool) => a.name.localeCompare(b.name));
+    categoryTools.sort(sortTools);
 
     for (const tool of categoryTools) {
       markdown += `### \`${tool.name}\`\n\n`;
@@ -360,6 +239,29 @@ async function generateReference(
       if (tool.description) {
         // Escape HTML tags but preserve JS function syntax
         let escapedDescription = escapeHtmlTags(tool.description);
+
+        const requiredFlags: string[] = [];
+
+        const isOffByDefault = isCategoryOffByDefault(category);
+        if (isOffByDefault) {
+          const categoryFlag = categoryToFlagName(category);
+          requiredFlags.push(`--${categoryFlag}=true`);
+        }
+
+        const conditions = tool.annotations?.conditions || [];
+        for (const condition of conditions) {
+          if (condition === 'slim') {
+            continue;
+          }
+          const option = mcpOptions[condition];
+          if (!option || !('default' in option) || option.default !== true) {
+            requiredFlags.push(`--${condition}=true`);
+          }
+        }
+
+        if (requiredFlags.length > 0) {
+          escapedDescription += ` (requires flag: ${requiredFlags.join(', ')})`;
+        }
 
         // Add cross-links to mentioned tools
         escapedDescription = addCrossLinks(
@@ -431,40 +333,37 @@ async function generateReference(
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getToolsAndCategories(tools: any) {
+function getToolsAndCategories(tools: AnyToolDefinition[]) {
   // Convert ToolDefinitions to ToolWithAnnotations
   const toolsWithAnnotations: ToolWithAnnotations[] = tools
     .filter(tool => {
-      if (!tool.annotations.conditions) {
-        return true;
+      // Skipping in_page tools as they are not launched yet
+      if (tool.annotations.category === ToolCategory.IN_PAGE) {
+        return false;
       }
 
-      // Only include unconditional tools.
-      return tool.annotations.conditions.length === 0;
+      // Skipping tools behind internal flags.
+      if (requiresHiddenFlag(tool)) {
+        return false;
+      }
+
+      // Skipping internal interop tools not meant for public documentation
+      const skipTools = ['get_tab_id'];
+      if (skipTools.includes(tool.name)) {
+        return false;
+      }
+
+      return true;
     })
     .map(tool => {
-      const properties: Record<string, TypeInfo> = {};
-      const required: string[] = [];
-
-      for (const [key, schema] of Object.entries(
-        tool.schema as unknown as Record<string, ZodSchema>,
-      )) {
-        const info = getZodTypeInfo(schema);
-        properties[key] = info;
-        if (isRequired(schema)) {
-          required.push(key);
-        }
-      }
+      const inputSchema = zod.toJSONSchema(zod.object(tool.schema), {
+        io: 'input',
+      }) as ToolWithAnnotations['inputSchema'];
 
       return {
         name: tool.name,
         description: tool.description,
-        inputSchema: {
-          type: 'object',
-          properties,
-          required,
-        },
+        inputSchema,
         annotations: tool.annotations,
       };
     });
@@ -481,8 +380,16 @@ function getToolsAndCategories(tools: any) {
   // Sort categories using the enum order
   const categoryOrder = Object.values(ToolCategory);
   const sortedCategories = Object.keys(categories).sort((a, b) => {
-    const aIndex = categoryOrder.indexOf(a);
-    const bIndex = categoryOrder.indexOf(b);
+    const aOff = isCategoryOffByDefault(a);
+    const bOff = isCategoryOffByDefault(b);
+
+    if (aOff !== bOff) {
+      return aOff ? 1 : -1;
+    }
+
+    const aIndex = categoryOrder.indexOf(a as ToolCategory);
+    const bIndex = categoryOrder.indexOf(b as ToolCategory);
+
     // Put known categories first, unknown categories last
     if (aIndex === -1 && bIndex === -1) {
       return a.localeCompare(b);
@@ -501,40 +408,40 @@ function getToolsAndCategories(tools: any) {
 async function generateToolDocumentation(): Promise<void> {
   try {
     console.log('Generating tool documentation from definitions...');
+    // Returns both the regular and the slim tools.
+    const tools = createTools({
+      pageIdRouting: true,
+      categoryExtensions: true,
+      maxNavigationSaved: mcpOptions.maxNavigationSaved.default,
+    } as ParsedArguments);
 
     {
       const {toolsWithAnnotations, categories, sortedCategories} =
-        getToolsAndCategories(createTools({slim: false} as ParsedArguments));
+        getToolsAndCategories(tools.filter(tool => !isSlimTool(tool)));
       await generateReference(
         'Chrome DevTools MCP Tool Reference',
         OUTPUT_PATH,
         toolsWithAnnotations,
         categories,
         sortedCategories,
-        [],
       );
-
-      // Generate tools TOC and update README
-      const toolsTOC = generateToolsTOC(categories, sortedCategories);
-      updateReadmeWithToolsTOC(toolsTOC);
     }
 
     {
       const {toolsWithAnnotations, categories, sortedCategories} =
-        getToolsAndCategories(createTools({slim: true} as ParsedArguments));
+        getToolsAndCategories(tools.filter(tool => isSlimTool(tool)));
       await generateReference(
         'Chrome DevTools MCP Slim Tool Reference',
         SLIM_OUTPUT_PATH,
         toolsWithAnnotations,
         categories,
         sortedCategories,
-        ['--slim'],
       );
     }
 
     // Generate and update configuration options
     const optionsMarkdown = generateConfigOptionsMarkdown();
-    updateReadmeWithOptionsMarkdown(optionsMarkdown);
+    updateConfigurationWithOptionsMarkdown(optionsMarkdown);
     process.exit(0);
   } catch (error) {
     console.error('Error generating documentation:', error);

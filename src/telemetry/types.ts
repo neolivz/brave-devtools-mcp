@@ -4,24 +4,51 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type {ErrorCode} from './errors.js';
+
 // Protobuf message interfaces
-export interface BraveDevToolsMcpExtension {
+export interface ChromeDevToolsMcpExtension {
   os_type?: OsType;
   mcp_client?: McpClient;
+  raw_mcp_client_info?: RawMcpClientInfo;
   app_version?: string;
   session_id?: string;
   tool_invocation?: ToolInvocation;
   server_start?: ServerStart;
   daily_active?: DailyActive;
   server_shutdown?: ServerShutdown;
+  server_error?: ServerError;
+  tool_active?: ToolActive;
+}
+
+export interface RawMcpClientInfo {
+  raw_client_name: string;
+}
+
+export interface ServerError {
+  tool_name?: string;
+  error_code: ErrorCode;
 }
 
 export type ServerShutdown = Record<string, never>;
+
+export interface LoggedDevToolsData {
+  is_dom_element_selected?: boolean;
+  is_network_request_selected?: boolean;
+}
+
+export interface ToolInvocationContext {
+  is_devtools_open?: boolean;
+  is_localhost?: boolean;
+  devtools_data?: LoggedDevToolsData;
+}
 
 export interface ToolInvocation {
   tool_name: string;
   success: boolean;
   latency_ms: number;
+  tool_params?: object;
+  context?: ToolInvocationContext;
 }
 
 export interface ServerStart {
@@ -30,6 +57,10 @@ export interface ServerStart {
 
 export interface DailyActive {
   days_since_last_active: number;
+}
+
+export interface ToolActive {
+  days_since_last_tool_call: number;
 }
 
 export type FlagUsage = Record<string, boolean | string | number | undefined>;
@@ -63,7 +94,6 @@ export enum OsType {
   OS_TYPE_LINUX = 3,
 }
 
-
 export enum McpClient {
   MCP_CLIENT_UNSPECIFIED = 0,
   MCP_CLIENT_CLAUDE_CODE = 1,
@@ -72,6 +102,11 @@ export enum McpClient {
   MCP_CLIENT_OPENCLAW = 5,
   MCP_CLIENT_CODEX = 6,
   MCP_CLIENT_ANTIGRAVITY = 7,
+  MCP_CLIENT_GROK = 8,
+  MCP_CLIENT_OPENCODE = 9,
+  MCP_CLIENT_CLAUDE_DESKTOP = 10,
+  MCP_CLIENT_GITHUB_COPILOT = 11,
+  MCP_CLIENT_HERMES = 12,
   MCP_CLIENT_OTHER = 3,
 }
 
@@ -83,5 +118,5 @@ export enum WatchdogMessageType {
 
 export interface WatchdogMessage {
   type: WatchdogMessageType.LOG_EVENT;
-  payload: BraveDevToolsMcpExtension;
+  payload: ChromeDevToolsMcpExtension;
 }

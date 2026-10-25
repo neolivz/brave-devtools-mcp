@@ -10,32 +10,22 @@ import {pathToFileURL} from 'node:url';
 import {parseArgs} from 'node:util';
 
 import {GoogleGenAI, mcpToTool} from '@google/genai';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 
+import {Client} from '@modelcontextprotocol/client';
+import {StdioClientTransport} from '@modelcontextprotocol/client/stdio';
 import {TestServer} from '../build/tests/server.js';
+
+import {
+  Result,
+  type CapturedFunctionCall,
+  type TestScenario,
+} from './eval_result.js';
 
 const ROOT_DIR = path.resolve(import.meta.dirname, '..');
 const SCENARIOS_DIR = path.join(import.meta.dirname, 'eval_scenarios');
 const SKILL_PATH = path.join(ROOT_DIR, 'skills', 'chrome-devtools', 'SKILL.md');
-
-// Define schema for our test scenarios
-export interface CapturedFunctionCall {
-  name: string;
-  args: Record<string, unknown>;
-}
-
-export interface TestScenario {
-  prompt: string;
-  maxTurns: number;
-  expectations: (calls: CapturedFunctionCall[]) => void;
-  htmlRoute?: {
-    path: string;
-    htmlContent: string;
-  };
-  /** Extra CLI flags passed to the MCP server (e.g. '--experimental-page-id-routing'). */
-  serverArgs?: string[];
-}
+export type {CapturedFunctionCall, TestScenario};
+export {Result};
 
 async function loadScenario(scenarioPath: string): Promise<TestScenario> {
   const module = await import(pathToFileURL(scenarioPath).href);
@@ -54,6 +44,8 @@ async function runSingleScenario(
   modelId: string,
   debug: boolean,
   includeSkill: boolean,
+  skillPath: string = SKILL_PATH,
+  extraServerArgs: string[] = [],
 ): Promise<void> {
   const debugLog = (...args: unknown[]) => {
     if (debug) {
@@ -74,12 +66,12 @@ async function runSingleScenario(
 
     // Prepend skill content if requested
     if (includeSkill) {
-      if (!fs.existsSync(SKILL_PATH)) {
+      if (!fs.existsSync(skillPath)) {
         throw new Error(
-          `Skill file not found at ${SKILL_PATH}. Please ensure the skill file exists.`,
+          `Skill file not found at ${skillPath}. Please ensure the skill file exists.`,
         );
       }
-      const skillContent = fs.readFileSync(SKILL_PATH, 'utf-8');
+      const skillContent = fs.readFileSync(skillPath, 'utf-8');
       scenario.prompt = `${skillContent}\n\n---\n\n${scenario.prompt}`;
     }
 
@@ -99,7 +91,10 @@ async function runSingleScenario(
     }
 
     // Path to the compiled MCP server
-    const serverPath = path.join(ROOT_DIR, 'build/src/index.js');
+    const serverPath = path.join(
+      ROOT_DIR,
+      'build/src/bin/chrome-devtools-mcp.js',
+    );
     if (!fs.existsSync(serverPath)) {
       throw new Error(
         `MCP server not found at ${serverPath}. Please run 'npm run build' first.`,
@@ -115,12 +110,15 @@ async function runSingleScenario(
     });
     env['CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS'] = 'true';
 
-    const args = [serverPath];
+    const args = [serverPath, '--isolated'];
     if (!debug) {
       args.push('--headless');
     }
     if (scenario.serverArgs) {
       args.push(...scenario.serverArgs);
+    }
+    if (extraServerArgs.length > 0) {
+      args.push(...extraServerArgs);
     }
 
     transport = new StdioClientTransport({
@@ -172,7 +170,7 @@ async function runSingleScenario(
     debugLog(`\n--- Response ---\n${result.text}`);
 
     debugLog('\nVerifying expectations...');
-    scenario.expectations(allCalls);
+    scenario.expectations(new Result(allCalls, args, result.text ?? ''));
   } finally {
     try {
       await client?.close();
@@ -192,7 +190,7 @@ async function main() {
     options: {
       model: {
         type: 'string',
-        default: 'gemini-2.5-flash',
+        default: 'gemini-3-flash-preview',
       },
       debug: {
         type: 'boolean',
@@ -206,6 +204,12 @@ async function main() {
         type: 'boolean',
         default: false,
       },
+      'skill-path': {
+        type: 'string',
+      },
+      'server-args': {
+        type: 'string',
+      },
     },
     allowPositionals: true,
   });
@@ -213,7 +217,13 @@ async function main() {
   const modelId = values.model;
   const debug = values.debug;
   const repeat = values.repeat;
-  const includeSkill = values['include-skill'];
+  const includeSkill = values['include-skill'] || Boolean(values['skill-path']);
+  const skillPath = values['skill-path']
+    ? path.resolve(ROOT_DIR, values['skill-path'])
+    : SKILL_PATH;
+  const extraServerArgs = values['server-args']
+    ? values['server-args'].split(/\s+/)
+    : [];
 
   const scenarioFiles =
     positionals.length > 0
@@ -245,6 +255,8 @@ async function main() {
             modelId,
             debug,
             includeSkill,
+            skillPath,
+            extraServerArgs,
           );
           console.log(`✔ ${path.relative(ROOT_DIR, scenarioPath)} (Run ${i})`);
           successCount++;
@@ -255,7 +267,7 @@ async function main() {
           console.error(e);
           failureCount++;
         } finally {
-          server.restore();
+          server.reset();
         }
       }
     }

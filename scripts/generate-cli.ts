@@ -7,61 +7,35 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
-
-import {parseArguments} from '../build/src/bin/chrome-devtools-mcp-cli-options.js';
-import {labels} from '../build/src/tools/categories.js';
-import {createTools} from '../build/src/tools/tools.js';
+import {
+  isCategoryOffByDefault,
+  categoryToFlagName,
+} from '../build/src/config/category-options.js';
+import {mcpOptions} from '../build/src/config/mcp-options.js';
+import {ServerConfig} from '../build/src/config/ServerConfig.js';
+import {zod} from '../build/src/third_party/index.js';
+import {labels, ToolCategory} from '../build/src/tools/categories.js';
+import {isSlimTool} from '../build/src/tools/ToolDefinition.js';
+import {createTools, requiresHiddenFlag} from '../build/src/tools/tools.js';
 
 const OUTPUT_PATH = path.join(
   import.meta.dirname,
-  '../src/bin/cliDefinitions.ts',
+  '../src/config/cli-options.ts',
 );
 
-async function fetchTools() {
-  console.log('Connecting to chrome-devtools-mcp to fetch tools...');
-  // Use the local build of the server
-  const serverPath = path.join(
-    import.meta.dirname,
-    '../build/src/bin/chrome-devtools-mcp.js',
-  );
-
-  const transport = new StdioClientTransport({
-    command: 'node',
-    args: [serverPath],
-    env: {...process.env, CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true'},
-  });
-
-  const client = new Client(
-    {
-      name: 'chrome-devtools-cli-generator',
-      version: '0.1.0',
-    },
-    {
-      capabilities: {},
-    },
-  );
-
-  await client.connect(transport);
-  try {
-    const toolsResponse = await client.listTools();
-    if (!toolsResponse.tools?.length) {
-      throw new Error(`No tools were fetched`);
-    }
-    const tools = toolsResponse.tools || [];
-    console.log(`Fetched ${tools.length} tools`);
-    return tools;
-  } finally {
-    await client.close();
-  }
-}
+/**
+ * Optional args that intentionally remain positional for backwards-compatible
+ * CLI syntax. Every required arg is positional; every other optional arg is a
+ * flag.
+ */
+const OPTIONAL_POSITIONAL_ARGS = new Set(['evaluate_script:function']);
 
 interface CliOption {
   name: string;
   type: string;
   description: string;
   required: boolean;
+  positional: boolean;
   default?: unknown;
   enum?: unknown[];
 }
@@ -75,7 +49,7 @@ interface JsonSchema {
   enum?: unknown[];
 }
 
-function schemaToCLIOptions(schema: JsonSchema): CliOption[] {
+function schemaToCLIOptions(toolName: string, schema: JsonSchema): CliOption[] {
   if (!schema || !schema.properties) {
     return [];
   }
@@ -94,6 +68,8 @@ function schemaToCLIOptions(schema: JsonSchema): CliOption[] {
       type: prop.type,
       description,
       required: isRequired,
+      positional:
+        isRequired || OPTIONAL_POSITIONAL_ARGS.has(`${toolName}:${name}`),
       default: prop.default,
       enum: prop.enum,
     };
@@ -101,12 +77,21 @@ function schemaToCLIOptions(schema: JsonSchema): CliOption[] {
 }
 
 async function generateCli() {
-  const tools = await fetchTools();
+  const tools = createTools(
+    ServerConfig.applyDefaults(
+      {viaCli: true},
+      {suppressUsageStatisticsNotice: true},
+    ),
+  );
 
   // Sort tools by name
   const sortedTools = tools
     .sort((a, b) => a.name.localeCompare(b.name))
     .filter(tool => {
+      // Skipping slim tools and tools behind internal flags.
+      if (isSlimTool(tool) || requiresHiddenFlag(tool)) {
+        return false;
+      }
       // Skipping fill_form because it is not relevant in shell scripts
       // and CLI does not handle array/JSON args well.
       if (tool.name === 'fill_form') {
@@ -117,17 +102,16 @@ async function generateCli() {
       if (tool.name === 'wait_for') {
         return false;
       }
+      // Skipping get_tab_id as it is for internal integrations
+      if (tool.name === 'get_tab_id') {
+        return false;
+      }
+      // Skipping in_page tools as they are not launched yet
+      if (tool.annotations.category === ToolCategory.IN_PAGE) {
+        return false;
+      }
       return true;
     });
-
-  const staticTools = createTools(parseArguments());
-  const toolNameToCategory = new Map<string, string>();
-  for (const tool of staticTools) {
-    toolNameToCategory.set(
-      tool.name,
-      labels[tool.annotations.category as keyof typeof labels],
-    );
-  }
 
   const commands: Record<
     string,
@@ -135,20 +119,47 @@ async function generateCli() {
   > = {};
 
   for (const tool of sortedTools) {
-    const options = schemaToCLIOptions(tool.inputSchema);
+    const inputSchema = zod.toJSONSchema(zod.object(tool.schema), {
+      io: 'input',
+    }) as JsonSchema;
+    const options = schemaToCLIOptions(tool.name, inputSchema);
     const args: Record<string, CliOption> = {};
     for (const opt of options) {
       args[opt.name] = opt;
     }
-    const category = toolNameToCategory.get(tool.name);
-    if (!category) {
+
+    const categoryEnum = tool.annotations.category;
+    if (!categoryEnum) {
       throw new Error(`Tool ${tool.name} has no category.`);
     }
+    const category = labels[categoryEnum as unknown as keyof typeof labels];
     if (!tool.description) {
-      throw new Error(`Tool ${tool.name} is missing descripttion`);
+      throw new Error(`Tool ${tool.name} is missing description`);
     }
+
+    let description = tool.description;
+    const requiredFlags: string[] = [];
+
+    const isOffByDefault = isCategoryOffByDefault(categoryEnum);
+    if (isOffByDefault) {
+      const categoryFlag = categoryToFlagName(categoryEnum);
+      requiredFlags.push(`--${categoryFlag}=true`);
+    }
+
+    const conditions = tool.annotations.conditions || [];
+    for (const condition of conditions) {
+      const option = mcpOptions[condition as keyof typeof mcpOptions];
+      if (!option || !('default' in option) || option.default !== true) {
+        requiredFlags.push(`--${condition}=true`);
+      }
+    }
+
+    if (requiredFlags.length > 0) {
+      description += ` (requires flag: ${requiredFlags.join(', ')})`;
+    }
+
     commands[tool.name] = {
-      description: tool.description,
+      description,
       category,
       args,
     };
@@ -161,13 +172,20 @@ async function generateCli() {
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// NOTE: do not edit manually. Auto-generated by 'npm run cli:generate'.
+/**
+ * @fileoverview
+ * WARNING: This file is auto-generated by 'npm run cli:generate'.
+ * Do not edit this file manually.
+ */
+
 
 export interface ArgDef {
   name: string;
   type: string;
   description: string;
   required: boolean;
+  /** Whether the arg is a positional on the command line, otherwise a flag. */
+  positional: boolean;
   default?: string | number | boolean;
   enum?: ReadonlyArray<string | number>;
 }

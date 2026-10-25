@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
+import {semver} from '../third_party/cli.js';
 import {VERSION} from '../version.js';
 
 /**
@@ -18,13 +19,13 @@ import {VERSION} from '../version.js';
  */
 let isChecking = false;
 
-/** @internal Reset flag for tests only. */
-export function resetUpdateCheckFlagForTesting() {
+/** @internal */
+export function resetUpdateCheckFlagForTesting(): void {
   isChecking = false;
 }
 
-export async function checkForUpdates(message: string) {
-  if (isChecking || process.env['BRAVE_DEVTOOLS_MCP_NO_UPDATE_CHECKS']) {
+export async function checkForUpdates(message: string): Promise<void> {
+  if (isChecking || process.env['CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS']) {
     return;
   }
   isChecking = true;
@@ -32,7 +33,7 @@ export async function checkForUpdates(message: string) {
   const cachePath = path.join(
     os.homedir(),
     '.cache',
-    'brave-devtools-mcp',
+    'chrome-devtools-mcp',
     'latest.json',
   );
 
@@ -46,7 +47,7 @@ export async function checkForUpdates(message: string) {
     // Ignore errors reading cache.
   }
 
-  if (cachedVersion && cachedVersion !== VERSION) {
+  if (cachedVersion && semver.lt(VERSION, cachedVersion)) {
     console.warn(
       `\nUpdate available: ${VERSION} -> ${cachedVersion}\n${message}\n`,
     );
@@ -87,6 +88,7 @@ export async function checkForUpdates(message: string) {
       {
         detached: true,
         stdio: 'ignore',
+        windowsHide: true,
       },
     );
     child.unref();

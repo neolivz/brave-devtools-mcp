@@ -3,12 +3,16 @@
     "name": "click",
     "args": [
       {
-        "name": "dblClick",
+        "name": "dbl_click",
         "argType": "boolean"
       },
       {
-        "name": "includeSnapshot",
+        "name": "include_snapshot",
         "argType": "boolean"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
       }
     ]
   },
@@ -24,12 +28,16 @@
         "argType": "number"
       },
       {
-        "name": "dblClick",
+        "name": "dbl_click",
         "argType": "boolean"
       },
       {
-        "name": "includeSnapshot",
+        "name": "include_snapshot",
         "argType": "boolean"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
       }
     ]
   },
@@ -37,7 +45,7 @@
     "name": "close_page",
     "args": [
       {
-        "name": "pageId",
+        "name": "page_id",
         "argType": "number"
       }
     ]
@@ -54,8 +62,12 @@
         "argType": "number"
       },
       {
-        "name": "includeSnapshot",
+        "name": "include_snapshot",
         "argType": "boolean"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
       }
     ]
   },
@@ -63,11 +75,11 @@
     "name": "emulate",
     "args": [
       {
-        "name": "networkConditions",
+        "name": "network_conditions",
         "argType": "string"
       },
       {
-        "name": "cpuThrottlingRate",
+        "name": "cpu_throttling_rate",
         "argType": "number"
       },
       {
@@ -75,16 +87,36 @@
         "argType": "number"
       },
       {
-        "name": "userAgent_length",
+        "name": "user_agent_length",
         "argType": "number"
       },
       {
-        "name": "colorScheme",
+        "name": "color_scheme",
         "argType": "string"
       },
       {
         "name": "viewport_length",
         "argType": "number"
+      },
+      {
+        "name": "extra_http_headers_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
+      },
+      {
+        "name": "forced_colors",
+        "argType": "string"
+      },
+      {
+        "name": "prefers_contrast",
+        "argType": "string"
+      },
+      {
+        "name": "prefers_reduced_motion",
+        "argType": "string"
       }
     ]
   },
@@ -107,6 +139,30 @@
       {
         "name": "args_count",
         "argType": "number"
+      },
+      {
+        "name": "dialog_action_length",
+        "argType": "number"
+      },
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "wait_for_stable_dom",
+        "argType": "boolean"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
+      },
+      {
+        "name": "source_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "format",
+        "argType": "string"
       }
     ]
   },
@@ -114,14 +170,15 @@
     "name": "execute_in_page_tool",
     "args": [
       {
-        "name": "toolName_length",
+        "name": "tool_name_length",
         "argType": "number"
       },
       {
         "name": "params_length",
         "argType": "number"
       }
-    ]
+    ],
+    "isDeprecated": true
   },
   {
     "name": "fill",
@@ -131,8 +188,12 @@
         "argType": "number"
       },
       {
-        "name": "includeSnapshot",
+        "name": "include_snapshot",
         "argType": "boolean"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
       }
     ]
   },
@@ -144,24 +205,37 @@
         "argType": "number"
       },
       {
-        "name": "includeSnapshot",
+        "name": "include_snapshot",
         "argType": "boolean"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
       }
     ]
   },
   {
     "name": "get_console_message",
-    "args": []
+    "args": [
+      {
+        "name": "page_id",
+        "argType": "number"
+      }
+    ]
   },
   {
     "name": "get_network_request",
     "args": [
       {
-        "name": "requestFilePath_length",
+        "name": "request_file_path_length",
         "argType": "number"
       },
       {
-        "name": "responseFilePath_length",
+        "name": "response_file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
         "argType": "number"
       }
     ]
@@ -170,7 +244,7 @@
     "name": "get_tab_id",
     "args": [
       {
-        "name": "pageId",
+        "name": "page_id",
         "argType": "number"
       }
     ]
@@ -183,7 +257,11 @@
         "argType": "string"
       },
       {
-        "name": "promptText_length",
+        "name": "prompt_text_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
         "argType": "number"
       }
     ]
@@ -192,8 +270,12 @@
     "name": "hover",
     "args": [
       {
-        "name": "includeSnapshot",
+        "name": "include_snapshot",
         "argType": "boolean"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
       }
     ]
   },
@@ -218,7 +300,11 @@
         "argType": "string"
       },
       {
-        "name": "outputDirPath_length",
+        "name": "output_dir_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
         "argType": "number"
       }
     ]
@@ -227,11 +313,11 @@
     "name": "list_console_messages",
     "args": [
       {
-        "name": "pageSize",
+        "name": "page_size",
         "argType": "number"
       },
       {
-        "name": "pageIdx",
+        "name": "page_idx",
         "argType": "number"
       },
       {
@@ -239,8 +325,20 @@
         "argType": "number"
       },
       {
-        "name": "includePreservedMessages",
+        "name": "include_preserved_messages",
         "argType": "boolean"
+      },
+      {
+        "name": "service_worker_id_length",
+        "argType": "number"
+      },
+      {
+        "name": "include_stack_traces",
+        "argType": "boolean"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
       }
     ]
   },
@@ -250,26 +348,31 @@
   },
   {
     "name": "list_in_page_tools",
-    "args": []
+    "args": [],
+    "isDeprecated": true
   },
   {
     "name": "list_network_requests",
     "args": [
       {
-        "name": "pageSize",
+        "name": "page_size",
         "argType": "number"
       },
       {
-        "name": "pageIdx",
+        "name": "page_idx",
         "argType": "number"
       },
       {
-        "name": "resourceTypes_count",
+        "name": "resource_types_count",
         "argType": "number"
       },
       {
-        "name": "includePreservedRequests",
+        "name": "include_preserved_requests",
         "argType": "boolean"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
       }
     ]
   },
@@ -298,19 +401,23 @@
         "argType": "number"
       },
       {
-        "name": "ignoreCache",
+        "name": "ignore_cache",
         "argType": "boolean"
       },
       {
-        "name": "handleBeforeUnload",
+        "name": "handle_before_unload",
         "argType": "string"
       },
       {
-        "name": "initScript_length",
+        "name": "init_script_length",
         "argType": "number"
       },
       {
         "name": "timeout",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
         "argType": "number"
       }
     ]
@@ -327,7 +434,7 @@
         "argType": "boolean"
       },
       {
-        "name": "isolatedContext_length",
+        "name": "isolated_context_length",
         "argType": "number"
       },
       {
@@ -340,11 +447,15 @@
     "name": "performance_analyze_insight",
     "args": [
       {
-        "name": "insightSetId_length",
+        "name": "insight_set_id_length",
         "argType": "number"
       },
       {
-        "name": "insightName_length",
+        "name": "insight_name_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
         "argType": "number"
       }
     ]
@@ -357,12 +468,20 @@
         "argType": "boolean"
       },
       {
-        "name": "autoStop",
+        "name": "auto_stop",
         "argType": "boolean"
       },
       {
-        "name": "filePath_length",
+        "name": "file_path_length",
         "argType": "number"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
+      },
+      {
+        "name": "ignore_cache",
+        "argType": "boolean"
       }
     ]
   },
@@ -370,7 +489,11 @@
     "name": "performance_stop_trace",
     "args": [
       {
-        "name": "filePath_length",
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
         "argType": "number"
       }
     ]
@@ -383,8 +506,12 @@
         "argType": "number"
       },
       {
-        "name": "includeSnapshot",
+        "name": "include_snapshot",
         "argType": "boolean"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
       }
     ]
   },
@@ -407,6 +534,10 @@
       {
         "name": "height",
         "argType": "number"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
       }
     ]
   },
@@ -415,27 +546,46 @@
     "args": [
       {
         "name": "path_length",
+        "argType": "number",
+        "isDeprecated": true
+      },
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
         "argType": "number"
       }
     ]
   },
   {
     "name": "screencast_stop",
-    "args": []
+    "args": [
+      {
+        "name": "page_id",
+        "argType": "number"
+      }
+    ]
   },
   {
     "name": "screenshot",
-    "args": []
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      }
+    ]
   },
   {
     "name": "select_page",
     "args": [
       {
-        "name": "pageId",
+        "name": "page_id",
         "argType": "number"
       },
       {
-        "name": "bringToFront",
+        "name": "bring_to_front",
         "argType": "boolean"
       }
     ]
@@ -444,10 +594,11 @@
     "name": "take_memory_snapshot",
     "args": [
       {
-        "name": "filePath_length",
+        "name": "file_path_length",
         "argType": "number"
       }
-    ]
+    ],
+    "isDeprecated": true
   },
   {
     "name": "take_screenshot",
@@ -461,11 +612,15 @@
         "argType": "number"
       },
       {
-        "name": "fullPage",
+        "name": "full_page",
         "argType": "boolean"
       },
       {
-        "name": "filePath_length",
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
         "argType": "number"
       }
     ]
@@ -478,7 +633,11 @@
         "argType": "boolean"
       },
       {
-        "name": "filePath_length",
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
         "argType": "number"
       }
     ]
@@ -500,7 +659,11 @@
         "argType": "number"
       },
       {
-        "name": "submitKey_length",
+        "name": "submit_key_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
         "argType": "number"
       }
     ]
@@ -518,12 +681,21 @@
     "name": "upload_file",
     "args": [
       {
-        "name": "filePath_length",
+        "name": "file_path_length",
+        "argType": "number",
+        "isDeprecated": true
+      },
+      {
+        "name": "include_snapshot",
+        "argType": "boolean"
+      },
+      {
+        "name": "file_paths_count",
         "argType": "number"
       },
       {
-        "name": "includeSnapshot",
-        "argType": "boolean"
+        "name": "page_id",
+        "argType": "number"
       }
     ]
   },
@@ -537,6 +709,691 @@
       {
         "name": "timeout",
         "argType": "number"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
+      },
+      {
+        "name": "visible",
+        "argType": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "list_webmcp_tools",
+    "args": [
+      {
+        "name": "page_id",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "execute_webmcp_tool",
+    "args": [
+      {
+        "name": "tool_name_length",
+        "argType": "number"
+      },
+      {
+        "name": "input_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "load_memory_snapshot",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      }
+    ],
+    "isDeprecated": true
+  },
+  {
+    "name": "get_memory_snapshot_details",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_idx",
+        "argType": "number"
+      },
+      {
+        "name": "page_size",
+        "argType": "number"
+      }
+    ],
+    "isDeprecated": true
+  },
+  {
+    "name": "get_nodes_by_class",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_idx",
+        "argType": "number"
+      },
+      {
+        "name": "page_size",
+        "argType": "number"
+      }
+    ],
+    "isDeprecated": true
+  },
+  {
+    "name": "execute3p_developer_tool",
+    "args": [
+      {
+        "name": "tool_name_length",
+        "argType": "number"
+      },
+      {
+        "name": "params_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "list3p_developer_tools",
+    "args": [
+      {
+        "name": "page_id",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "get_node_retainers",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "node_id",
+        "argType": "number"
+      },
+      {
+        "name": "page_idx",
+        "argType": "number"
+      },
+      {
+        "name": "page_size",
+        "argType": "number"
+      }
+    ],
+    "isDeprecated": true
+  },
+  {
+    "name": "get_heapsnapshot_class_nodes",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_idx",
+        "argType": "number"
+      },
+      {
+        "name": "page_size",
+        "argType": "number"
+      },
+      {
+        "name": "id",
+        "argType": "number"
+      },
+      {
+        "name": "filter_name",
+        "argType": "string"
+      },
+      {
+        "name": "object_id",
+        "argType": "number"
+      },
+      {
+        "name": "max_name_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "get_heapsnapshot_details",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_idx",
+        "argType": "number"
+      },
+      {
+        "name": "page_size",
+        "argType": "number"
+      },
+      {
+        "name": "filter_name",
+        "argType": "string"
+      },
+      {
+        "name": "object_id",
+        "argType": "number"
+      },
+      {
+        "name": "max_name_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "get_heapsnapshot_retainers",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "node_id",
+        "argType": "number"
+      },
+      {
+        "name": "page_idx",
+        "argType": "number"
+      },
+      {
+        "name": "page_size",
+        "argType": "number"
+      },
+      {
+        "name": "max_name_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "get_heapsnapshot_summary",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "max_name_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "take_heapsnapshot",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "close_heapsnapshot",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "get_heapsnapshot_retaining_paths",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "node_id",
+        "argType": "number"
+      },
+      {
+        "name": "max_depth",
+        "argType": "number"
+      },
+      {
+        "name": "max_nodes",
+        "argType": "number"
+      },
+      {
+        "name": "max_siblings",
+        "argType": "number"
+      },
+      {
+        "name": "max_name_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "get_heapsnapshot_edges",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "node_id",
+        "argType": "number"
+      },
+      {
+        "name": "page_idx",
+        "argType": "number"
+      },
+      {
+        "name": "page_size",
+        "argType": "number"
+      },
+      {
+        "name": "sort_by",
+        "argType": "string"
+      },
+      {
+        "name": "min_retained_size",
+        "argType": "number",
+        "isDeprecated": true
+      },
+      {
+        "name": "exclude_primitives",
+        "argType": "boolean"
+      },
+      {
+        "name": "retained_size_length",
+        "argType": "number"
+      },
+      {
+        "name": "max_name_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "get_heapsnapshot_dominators",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "node_id",
+        "argType": "number"
+      },
+      {
+        "name": "max_name_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "compare_heapsnapshots_class_nodes",
+    "args": [
+      {
+        "name": "base_file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "current_file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "class_index",
+        "argType": "number"
+      }
+    ],
+    "isDeprecated": true
+  },
+  {
+    "name": "compare_heapsnapshots_summary",
+    "args": [
+      {
+        "name": "base_file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "current_file_path_length",
+        "argType": "number"
+      }
+    ],
+    "isDeprecated": true
+  },
+  {
+    "name": "compare_heapsnapshots",
+    "args": [
+      {
+        "name": "base_file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "current_file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "class_index",
+        "argType": "number"
+      },
+      {
+        "name": "max_name_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_idx",
+        "argType": "number"
+      },
+      {
+        "name": "page_size",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "get_heapsnapshot_duplicate_strings",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "page_idx",
+        "argType": "number"
+      },
+      {
+        "name": "page_size",
+        "argType": "number"
+      },
+      {
+        "name": "max_name_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "get_heapsnapshot_object_details",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "node_id",
+        "argType": "number"
+      },
+      {
+        "name": "max_name_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "get_os_app_state",
+    "args": [
+      {
+        "name": "manifest_id_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "install_pwa",
+    "args": [
+      {
+        "name": "manifest_id_length",
+        "argType": "number"
+      },
+      {
+        "name": "install_url_or_bundle_url_length",
+        "argType": "number"
+      },
+      {
+        "name": "display_mode",
+        "argType": "string"
+      }
+    ]
+  },
+  {
+    "name": "launch_pwa",
+    "args": [
+      {
+        "name": "manifest_id_length",
+        "argType": "number"
+      },
+      {
+        "name": "url_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "uninstall_pwa",
+    "args": [
+      {
+        "name": "manifest_id_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "query_heapsnapshot_objects",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "class_name_length",
+        "argType": "number"
+      },
+      {
+        "name": "property_name_length",
+        "argType": "number"
+      },
+      {
+        "name": "node_type_length",
+        "argType": "number"
+      },
+      {
+        "name": "min_retained_size",
+        "argType": "number",
+        "isDeprecated": true
+      },
+      {
+        "name": "max_retained_size",
+        "argType": "number",
+        "isDeprecated": true
+      },
+      {
+        "name": "min_self_size",
+        "argType": "number",
+        "isDeprecated": true
+      },
+      {
+        "name": "max_self_size",
+        "argType": "number",
+        "isDeprecated": true
+      },
+      {
+        "name": "is_detached",
+        "argType": "boolean"
+      },
+      {
+        "name": "sort_by",
+        "argType": "string"
+      },
+      {
+        "name": "page_idx",
+        "argType": "number"
+      },
+      {
+        "name": "page_size",
+        "argType": "number"
+      },
+      {
+        "name": "retained_size_length",
+        "argType": "number"
+      },
+      {
+        "name": "self_size_length",
+        "argType": "number"
+      },
+      {
+        "name": "max_name_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "get_css_styles",
+    "args": [
+      {
+        "name": "page_size",
+        "argType": "number"
+      },
+      {
+        "name": "page_idx",
+        "argType": "number"
+      },
+      {
+        "name": "page_id",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "analyze_heapsnapshot_contexts",
+    "args": [
+      {
+        "name": "file_path_length",
+        "argType": "number"
+      },
+      {
+        "name": "retained_size_length",
+        "argType": "number"
+      },
+      {
+        "name": "scope_info_node_id",
+        "argType": "number"
+      },
+      {
+        "name": "page_idx",
+        "argType": "number"
+      },
+      {
+        "name": "page_size",
+        "argType": "number"
+      },
+      {
+        "name": "max_name_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "get_devtools_comments",
+    "args": [
+      {
+        "name": "page_id",
+        "argType": "number"
+      },
+      {
+        "name": "timeout",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "open_devtools",
+    "args": [
+      {
+        "name": "page_id",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "resolve_devtools_comment",
+    "args": [
+      {
+        "name": "page_id",
+        "argType": "number"
+      },
+      {
+        "name": "thread_id_length",
+        "argType": "number"
+      },
+      {
+        "name": "reply_text_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "reveal_in_devtools",
+    "args": [
+      {
+        "name": "page_id",
+        "argType": "number"
+      },
+      {
+        "name": "panel_name_length",
+        "argType": "number"
+      }
+    ]
+  },
+  {
+    "name": "configure_webauthn",
+    "args": [
+      {
+        "name": "page_id",
+        "argType": "number"
+      },
+      {
+        "name": "enabled",
+        "argType": "boolean"
+      },
+      {
+        "name": "protocol",
+        "argType": "string"
+      },
+      {
+        "name": "transport",
+        "argType": "string"
+      },
+      {
+        "name": "has_resident_key",
+        "argType": "boolean"
+      },
+      {
+        "name": "has_user_verification",
+        "argType": "boolean"
+      },
+      {
+        "name": "is_user_verified",
+        "argType": "boolean"
       }
     ]
   }

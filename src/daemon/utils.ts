@@ -4,82 +4,90 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
-import {logger} from '../logger.js';
 import type {YargsOptions} from '../third_party/index.js';
+import {logger} from '../utils/logger.js';
 
-export const DAEMON_SCRIPT_PATH = path.join(import.meta.dirname, 'daemon.js');
-export const INDEX_SCRIPT_PATH = path.join(
+export const DAEMON_SCRIPT_PATH: string = path.join(
   import.meta.dirname,
-  '..',
-  'bin',
-  'brave-devtools-mcp.js',
+  'daemon.js',
 );
 
-const APP_NAME = 'brave-devtools-mcp';
-export const DAEMON_CLIENT_NAME = 'brave-devtools-cli-daemon';
+const APP_NAME = 'chrome-devtools-mcp';
+export const DAEMON_CLIENT_NAME = 'chrome-devtools-cli-daemon';
+
+export function assertValidSessionId(sessionId: string): void {
+  if (!sessionId) {
+    return;
+  }
+  if (!/^[a-fA-F0-9-]+$/.test(sessionId)) {
+    throw new Error(`Invalid sessionId: ${sessionId}`);
+  }
+}
 
 // Using these paths due to strict limits on the POSIX socket path length.
-export function getSocketPath(): string {
-  const uid = os.userInfo().uid;
+export function getSocketPath(sessionId: string): string {
+  assertValidSessionId(sessionId);
+  const username = os.userInfo().username;
+  const suffix = sessionId ? `-${sessionId}` : '';
+  const appName = APP_NAME + suffix;
 
   if (IS_WINDOWS) {
     // Windows uses Named Pipes, not file paths.
     // This format is required for server.listen()
-    return path.join('\\\\.\\pipe', APP_NAME, 'server.sock');
+    // Append username to prevent cross-user named pipe squatting
+    return path.join('\\\\.\\pipe', `${appName}-${username}`, 'server.sock');
   }
 
-  // 1. Try XDG_RUNTIME_DIR (Linux standard, sometimes macOS)
-  if (process.env.XDG_RUNTIME_DIR) {
-    return path.join(process.env.XDG_RUNTIME_DIR, APP_NAME, 'server.sock');
-  }
-
-  // 2. macOS/Unix Fallback: Use /tmp/
-  // We use /tmp/ because it is much shorter than ~/Library/Application Support/
-  // and keeps us well under the 104-character limit.
-  return path.join('/tmp', `${APP_NAME}-${uid}.sock`);
+  return path.join(getRuntimeHome(sessionId), 'server.sock');
 }
 
-export function getRuntimeHome(): string {
+export function getRuntimeHome(sessionId: string): string {
+  assertValidSessionId(sessionId);
   const platform = os.platform();
   const uid = os.userInfo().uid;
+  const suffix = sessionId ? `-${sessionId}` : '';
+  const appName = APP_NAME + suffix;
 
   // 1. Check for the modern Unix standard
   if (process.env.XDG_RUNTIME_DIR) {
-    return path.join(process.env.XDG_RUNTIME_DIR, APP_NAME);
+    return path.join(process.env.XDG_RUNTIME_DIR, appName);
   }
 
   // 2. Fallback for macOS and older Linux
   if (platform === 'darwin' || platform === 'linux') {
     // /tmp is cleared on boot, making it perfect for PIDs
-    return path.join('/tmp', `${APP_NAME}-${uid}`);
+    return path.join('/tmp', `${appName}-${uid}`);
   }
 
   // 3. Windows Fallback
-  return path.join(os.tmpdir(), APP_NAME);
+  return path.join(os.tmpdir(), appName);
 }
 
-export const IS_WINDOWS = os.platform() === 'win32';
+export const IS_WINDOWS: boolean = os.platform() === 'win32';
 
-export function getPidFilePath() {
-  const runtimeDir = getRuntimeHome();
+export function getPidFilePath(sessionId: string): string {
+  assertValidSessionId(sessionId);
+  const runtimeDir = getRuntimeHome(sessionId);
   return path.join(runtimeDir, 'daemon.pid');
 }
 
-export function getDaemonPid() {
+export function getDaemonPid(sessionId: string): number | null {
+  assertValidSessionId(sessionId);
   try {
-    const pidFile = getPidFilePath();
-    logger(`Daemon pid file ${pidFile}`);
+    const pidFile = getPidFilePath(sessionId);
+    logger?.(`Daemon pid file ${pidFile} sessionId=${sessionId}`);
     if (!fs.existsSync(pidFile)) {
       return null;
     }
     const pidContent = fs.readFileSync(pidFile, 'utf-8');
     const pid = parseInt(pidContent.trim(), 10);
-    logger(`Daemon pid: ${pid}`);
+    logger?.(`Daemon pid: ${pid}`);
     if (isNaN(pid)) {
       return null;
     }
@@ -89,13 +97,67 @@ export function getDaemonPid() {
   }
 }
 
-export function isDaemonRunning(pid = getDaemonPid()): pid is number {
+const verifiedDaemonPids = new Map<number, boolean>();
+
+function getProcessCommandLine(pid: number): string {
+  if (process.platform === 'linux' && fs.existsSync('/proc')) {
+    return fs
+      .readFileSync(`/proc/${pid}/cmdline`, 'utf-8')
+      .replaceAll('\0', ' ');
+  }
+  if (IS_WINDOWS) {
+    return childProcess.execFileSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `(Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}").CommandLine`,
+      ],
+      {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        windowsHide: true,
+      },
+    );
+  }
+  return childProcess.execFileSync(
+    'ps',
+    ['-p', String(pid), '-o', 'command='],
+    {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    },
+  );
+}
+
+function isDaemonProcess(pid: number): boolean {
+  const cached = verifiedDaemonPids.get(pid);
+  if (cached !== undefined) {
+    return cached;
+  }
+  try {
+    const commandLine = getProcessCommandLine(pid).trim();
+    const isDaemon =
+      commandLine === '' || /[\\/]daemon[\\/]daemon\.js/.test(commandLine);
+    verifiedDaemonPids.set(pid, isDaemon);
+    return isDaemon;
+  } catch {
+    verifiedDaemonPids.set(pid, true);
+    return true;
+  }
+}
+
+export function isDaemonRunning(sessionId: string): boolean {
+  assertValidSessionId(sessionId);
+  const pid = getDaemonPid(sessionId);
   if (pid) {
     try {
       process.kill(pid, 0); // Throws if process doesn't exist
-      return true;
+      return isDaemonProcess(pid);
     } catch {
       // Process is dead, stale PID file. Proceed with startup.
+      verifiedDaemonPids.delete(pid);
     }
   }
   return false;
@@ -111,6 +173,12 @@ export function serializeArgs(
       continue;
     }
     const value = argv[key];
+    const option = options[key];
+    // Yargs reuses the option `default` object; skip it so the daemon parser
+    // still sees the original default (needed for filesystemRoot identity).
+    if (option !== undefined && value === option.default) {
+      continue;
+    }
     const kebabKey = key.replace(/[A-Z]/g, m => `-${m.toLowerCase()}`);
 
     if (typeof value === 'boolean') {
@@ -121,10 +189,12 @@ export function serializeArgs(
       }
     } else if (Array.isArray(value)) {
       for (const item of value) {
-        args.push(`--${kebabKey}`, String(item));
+        args.push(`--${kebabKey}=${String(item)}`);
       }
     } else {
-      args.push(`--${kebabKey}`, String(value));
+      const serializedValue =
+        typeof value === 'object' ? JSON.stringify(value) : String(value);
+      args.push(`--${kebabKey}=${serializedValue}`);
     }
   }
   return args;

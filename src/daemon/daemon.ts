@@ -6,101 +6,181 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import fs from 'node:fs';
+import '../utils/polyfill.js';
+
+import fs, {constants, openSync, writeSync, closeSync} from 'node:fs';
 import {createServer, type Server} from 'node:net';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
-import {logger} from '../logger.js';
-import {
-  Client,
-  PipeTransport,
-  StdioClientTransport,
-} from '../third_party/index.js';
+import {BrowserManager} from '../BrowserManager.js';
+import {mcpOptions} from '../config/mcp-options.js';
+
+import {ConfigParser} from '../config/ConfigParser.js';
+import {McpServer} from '../index.js';
+import {ClearcutLogger} from '../telemetry/ClearcutLogger.js';
+import {computeFlagUsage} from '../telemetry/flagUtils.js';
+import {PipeTransport} from '../third_party/index.js';
+import {logger, puppeteerLogger, saveLogsToFile} from '../utils/logger.js';
+import {setupUnhandledRejectionHandler} from '../utils/errorHandling.js';
 import {VERSION} from '../version.js';
 
-import type {DaemonMessage} from './types.js';
+import type {DaemonMessage, DaemonStatusResult} from './types.js';
 import {
   DAEMON_CLIENT_NAME,
-  getDaemonPid,
   getPidFilePath,
   getSocketPath,
-  INDEX_SCRIPT_PATH,
   IS_WINDOWS,
   isDaemonRunning,
+  assertValidSessionId,
 } from './utils.js';
 
-const pid = getDaemonPid();
-if (isDaemonRunning(pid)) {
-  logger('Another daemon process is running.');
+const sessionId = process.env.CHROME_DEVTOOLS_MCP_SESSION_ID || '';
+assertValidSessionId(sessionId);
+logger?.(`Daemon sessionId: ${sessionId}`);
+if (isDaemonRunning(sessionId)) {
+  logger?.('Another daemon process is running.');
   process.exit(1);
 }
-const pidFilePath = getPidFilePath();
-fs.mkdirSync(path.dirname(pidFilePath), {
-  recursive: true,
-});
-fs.writeFileSync(pidFilePath, process.pid.toString());
-logger(`Writing ${process.pid.toString()} to ${pidFilePath}`);
+const pidFilePath = getPidFilePath(sessionId);
+const pidDir = path.dirname(pidFilePath);
+const currentUserUid = os.userInfo().uid;
 
-const socketPath = getSocketPath();
+try {
+  fs.mkdirSync(pidDir, {recursive: true, mode: 0o700});
+  if (os.platform() !== 'win32') {
+    // POSIX specific checks
+    try {
+      const stats = fs.lstatSync(pidDir);
+
+      // 1. Reject symlinked runtime directories before checking ownership.
+      if (stats.isSymbolicLink()) {
+        console.error(
+          `[MCP Daemon] Critical error: PID directory ${pidDir} must not be a symbolic link. Possible tampering.`,
+        );
+        process.exit(1);
+      }
+
+      // 2. Check Ownership: Ensure the directory is owned by the current user.
+      if (stats.uid !== currentUserUid) {
+        console.error(
+          `[MCP Daemon] Critical error: PID directory ${pidDir} is not owned by the current user (Expected: ${currentUserUid}, Found: ${stats.uid}). Possible tampering.`,
+        );
+        process.exit(1);
+      }
+
+      // 3. Check Permissions: Ensure the directory is not group or world-writable.
+      // Mode is a number, e.g., 0o700. We check if bits for group/world write are set.
+      const mode = stats.mode;
+      if (mode & constants.S_IWGRP || mode & constants.S_IWOTH) {
+        console.error(
+          `[MCP Daemon] Critical error: PID directory ${pidDir} has insecure permissions (Mode: ${mode.toString(8)}). It should not be writable by group or others.`,
+        );
+        process.exit(1);
+      }
+    } catch (statErr) {
+      console.error(
+        `[MCP Daemon] Critical error stating PID directory ${pidDir}:`,
+        statErr,
+      );
+      process.exit(1);
+    }
+  }
+} catch (err) {
+  console.error(
+    `[MCP Daemon] Critical error creating/validating PID directory: ${pidDir}`,
+    err,
+  );
+  process.exit(1);
+}
+
+let fd = -1;
+try {
+  // Open the file with flags to:
+  // - O_WRONLY: Write-only
+  // - O_CREAT: Create if it doesn't exist
+  // - O_TRUNC: Truncate to zero length if it exists
+  // - O_NOFOLLOW: DO NOT follow symlinks.
+  // - 0o600: Permissions: read/write for owner, no permissions for others.
+  fd = openSync(
+    pidFilePath,
+    constants.O_WRONLY |
+      constants.O_CREAT |
+      constants.O_TRUNC |
+      constants.O_NOFOLLOW,
+    0o600,
+  );
+  writeSync(fd, process.pid.toString());
+} catch (err) {
+  console.error(
+    `[MCP Daemon] Critical error writing PID file: ${pidFilePath}`,
+    err,
+  );
+  // If openSync fails due to O_NOFOLLOW on a symlink, the error will be caught here.
+  process.exit(1);
+} finally {
+  if (fd !== -1) {
+    try {
+      closeSync(fd);
+    } catch (err) {
+      console.error(`[MCP Daemon] Error closing PID file: ${pidFilePath}`, err);
+    }
+  }
+}
+logger?.(`Writing ${process.pid.toString()} to ${pidFilePath}`);
+
+const socketPath = getSocketPath(sessionId);
 
 const startDate = new Date();
 const mcpServerArgs = process.argv.slice(2);
 
-let mcpClient: Client | null = null;
-let mcpTransport: StdioClientTransport | null = null;
+let mcpServer: McpServer | null = null;
 let server: Server | null = null;
 
-async function setupMCPClient() {
-  console.log('Setting up MCP client connection...');
-
-  // Create stdio transport for brave-devtools-mcp
-  mcpTransport = new StdioClientTransport({
-    command: process.execPath,
-    args: [INDEX_SCRIPT_PATH, ...mcpServerArgs],
-    env: process.env as Record<string, string>,
+async function setupMCPServer(): Promise<void> {
+  logger?.(`Starting Chrome DevTools MCP Server v${VERSION}`);
+  const configParser = new ConfigParser(VERSION);
+  const serverConfig = configParser.parseConfig();
+  const args = serverConfig.resolved;
+  const logFile = args.logFile ? saveLogsToFile(args.logFile) : undefined;
+  const browserManager = new BrowserManager(serverConfig, {
+    logFile,
   });
-  mcpClient = new Client(
-    {
-      name: DAEMON_CLIENT_NAME,
-      version: VERSION,
-    },
-    {
-      capabilities: {},
-    },
-  );
-  await mcpClient.connect(mcpTransport);
-
-  console.log('MCP client connected');
+  mcpServer = await McpServer.from(serverConfig, {
+    browserManager,
+    logFile,
+  });
+  if (args.watchConfig) {
+    mcpServer.watchConfig();
+  }
+  ClearcutLogger.get()?.setClientName(DAEMON_CLIENT_NAME);
+  void ClearcutLogger.get()?.logDailyActiveIfNeeded();
+  void ClearcutLogger.get()?.logServerStart(computeFlagUsage(args, mcpOptions));
 }
 
-interface McpContent {
-  type: string;
-  text?: string;
-}
-
-interface McpResult {
-  content?: McpContent[] | string;
-  text?: string;
-}
-async function handleRequest(msg: DaemonMessage) {
+async function handleRequest(msg: DaemonMessage): Promise<{
+  success: boolean;
+  result?: string;
+  message?: string;
+  error?: string;
+}> {
   try {
     if (msg.method === 'invoke_tool') {
-      if (!mcpClient) {
-        throw new Error('MCP client not initialized');
+      await started;
+      if (!mcpServer) {
+        throw new Error('MCP server not initialized');
       }
       const {tool, args} = msg;
 
-      const result = (await mcpClient.callTool({
-        name: tool,
-        arguments: args || {},
-      })) as McpResult | McpContent[];
+      const result = await mcpServer.callTool(tool, args);
 
       return {
         success: true,
         result: JSON.stringify(result),
       };
-    } else if (msg.method === 'stop') {
+    }
+    if (msg.method === 'stop') {
       // Ensure we are not interrupting in-progress starting.
       await started;
       // Trigger cleanup asynchronously.
@@ -111,16 +191,19 @@ async function handleRequest(msg: DaemonMessage) {
         success: true,
         message: 'stopping',
       };
-    } else if (msg.method === 'status') {
+    }
+    if (msg.method === 'status') {
+      await started;
+      const statusResult: DaemonStatusResult = {
+        pid: process.pid,
+        socketPath,
+        startDate: startDate.toISOString(),
+        version: VERSION,
+        args: mcpServerArgs,
+      };
       return {
         success: true,
-        result: JSON.stringify({
-          pid: process.pid,
-          socketPath,
-          startDate: startDate.toISOString(),
-          version: VERSION,
-          args: mcpServerArgs,
-        }),
+        result: JSON.stringify(statusResult),
       };
     }
     {
@@ -138,7 +221,7 @@ async function handleRequest(msg: DaemonMessage) {
   }
 }
 
-async function startSocketServer() {
+async function startSocketServer(): Promise<void> {
   // Remove existing socket file if it exists (only on non-Windows)
   if (!IS_WINDOWS) {
     try {
@@ -150,15 +233,15 @@ async function startSocketServer() {
 
   return await new Promise<void>((resolve, reject) => {
     server = createServer(socket => {
-      const transport = new PipeTransport(socket, socket);
+      const transport = new PipeTransport(socket, socket, puppeteerLogger);
       transport.onmessage = async (message: string) => {
-        logger('onmessage', message);
+        logger?.('onmessage', message);
         const response = await handleRequest(JSON.parse(message));
         transport.send(JSON.stringify(response));
         socket.end();
       };
       socket.on('error', error => {
-        logger('Socket error:', error);
+        logger?.('Socket error:', error);
       });
     });
 
@@ -172,8 +255,7 @@ async function startSocketServer() {
         console.log(`Daemon server listening on ${socketPath}`);
 
         try {
-          // Setup MCP client
-          await setupMCPClient();
+          await setupMCPServer();
           resolve();
         } catch (err) {
           reject(err);
@@ -182,28 +264,30 @@ async function startSocketServer() {
     );
 
     server.on('error', error => {
-      logger('Server error:', error);
+      logger?.('Server error:', error);
       reject(error);
     });
   });
 }
 
-async function cleanup() {
+let isCleaningUp = false;
+
+async function cleanup(exitCode = 0): Promise<void> {
+  if (isCleaningUp) {
+    return;
+  }
+  isCleaningUp = true;
   console.log('Cleaning up daemon...');
 
   try {
-    await mcpClient?.close();
+    await mcpServer?.close();
   } catch (error) {
-    logger('Error closing MCP client:', error);
+    logger?.('Error closing MCP server:', error);
   }
-  try {
-    await mcpTransport?.close();
-  } catch (error) {
-    logger('Error closing MCP transport:', error);
-  }
-  if (server) {
+  const activeServer = server;
+  if (activeServer) {
     await new Promise<void>(resolve => {
-      server!.close(() => resolve());
+      activeServer.close(() => resolve());
     });
   }
   if (!IS_WINDOWS) {
@@ -213,11 +297,13 @@ async function cleanup() {
       // ignore errors
     }
   }
-  logger(`unlinking ${pidFilePath}`);
-  if (fs.existsSync(pidFilePath)) {
+  logger?.(`unlinking ${pidFilePath}`);
+  try {
     fs.unlinkSync(pidFilePath);
+  } catch {
+    // ignore errors
   }
-  process.exit(0);
+  process.exit(exitCode);
 }
 
 // Handle shutdown signals
@@ -233,14 +319,15 @@ process.on('SIGHUP', () => {
 
 // Handle uncaught errors
 process.on('uncaughtException', error => {
-  logger('Uncaught exception:', error);
+  logger?.('Uncaught exception:', error);
+  void cleanup(1);
 });
-process.on('unhandledRejection', error => {
-  logger('Unhandled rejection:', error);
+setupUnhandledRejectionHandler(() => {
+  void cleanup(1);
 });
 
 // Start the server
 const started = startSocketServer().catch(error => {
-  logger('Failed to start daemon server:', error);
-  process.exit(1);
+  logger?.('Failed to start daemon server:', error);
+  void cleanup(1);
 });

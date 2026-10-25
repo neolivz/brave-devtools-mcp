@@ -11,25 +11,25 @@ import type {AddressInfo} from 'node:net';
 import path from 'node:path';
 import {describe, it} from 'node:test';
 
-import type {BraveDevToolsMcpExtension} from '../../src/telemetry/types';
+import type {ChromeDevToolsMcpExtension} from '../../src/telemetry/types';
 
-const SERVER_PATH = path.resolve('build/src/bin/brave-devtools-mcp.js');
+const SERVER_PATH = path.resolve('build/src/bin/chrome-devtools-mcp.js');
 
 interface MockServerContext {
   server: http.Server;
   port: number;
-  events: BraveDevToolsMcpExtension[];
+  events: ChromeDevToolsMcpExtension[];
   watchdogPid?: number;
   waitForEvent: (
-    predicate: (event: BraveDevToolsMcpExtension) => boolean,
-  ) => Promise<BraveDevToolsMcpExtension>;
+    predicate: (event: ChromeDevToolsMcpExtension) => boolean,
+  ) => Promise<ChromeDevToolsMcpExtension>;
 }
 
 async function startMockServer(): Promise<MockServerContext> {
-  const events: BraveDevToolsMcpExtension[] = [];
+  const events: ChromeDevToolsMcpExtension[] = [];
   let waitingResolvers: Array<{
-    predicate: (event: BraveDevToolsMcpExtension) => boolean;
-    resolve: (event: BraveDevToolsMcpExtension) => void;
+    predicate: (event: ChromeDevToolsMcpExtension) => boolean;
+    resolve: (event: ChromeDevToolsMcpExtension) => void;
   }> = [];
   let watchdogPid: number | undefined;
 
@@ -53,7 +53,7 @@ async function startMockServer(): Promise<MockServerContext> {
               if (logEvent.source_extension_json) {
                 const ext = JSON.parse(
                   logEvent.source_extension_json,
-                ) as BraveDevToolsMcpExtension;
+                ) as ChromeDevToolsMcpExtension;
                 events.push(ext);
 
                 // Check if any waiters are satisfied
@@ -172,6 +172,7 @@ describe('Telemetry E2E', () => {
         process.execPath,
         [
           SERVER_PATH,
+          '--usage-statistics',
           '--headless',
           `--clearcutEndpoint=http://127.0.0.1:${mockContext.port}`,
           '--clearcutForceFlushIntervalMs=10',
@@ -182,6 +183,7 @@ describe('Telemetry E2E', () => {
           env: {
             ...process.env,
             CI: undefined,
+            CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: undefined,
           },
           ...spawnOptions,
         },

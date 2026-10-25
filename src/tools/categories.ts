@@ -12,10 +12,14 @@ export enum ToolCategory {
   NETWORK = 'network',
   DEBUGGING = 'debugging',
   EXTENSIONS = 'extensions',
-  IN_PAGE = 'in-page',
+  THIRD_PARTY = 'experimentalThirdParty',
+  MEMORY = 'memory',
+  WEBMCP = 'experimentalWebmcp',
+  PWA = 'pwa',
+  WEBAUTHN = 'webauthn',
 }
 
-export const labels = {
+export const labels: Record<ToolCategory, string> = {
   [ToolCategory.INPUT]: 'Input automation',
   [ToolCategory.NAVIGATION]: 'Navigation automation',
   [ToolCategory.EMULATION]: 'Emulation',
@@ -23,5 +27,9 @@ export const labels = {
   [ToolCategory.NETWORK]: 'Network',
   [ToolCategory.DEBUGGING]: 'Debugging',
   [ToolCategory.EXTENSIONS]: 'Extensions',
-  [ToolCategory.IN_PAGE]: 'In-page tools',
+  [ToolCategory.THIRD_PARTY]: 'Third-party',
+  [ToolCategory.MEMORY]: 'Memory',
+  [ToolCategory.WEBMCP]: 'WebMCP',
+  [ToolCategory.PWA]: 'Progressive Web Apps',
+  [ToolCategory.WEBAUTHN]: 'WebAuthn',
 };

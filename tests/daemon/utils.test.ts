@@ -5,11 +5,63 @@
  */
 
 import assert from 'node:assert';
-import {describe, it} from 'node:test';
+import childProcess, {spawn} from 'node:child_process';
+import {once} from 'node:events';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import process from 'node:process';
+import {afterEach, beforeEach, describe, it} from 'node:test';
 
-import type {ParsedArguments} from '../../src/bin/brave-devtools-mcp-cli-options.js';
-import {serializeArgs} from '../../src/daemon/utils.js';
+import sinon from 'sinon';
+
+import type {ParsedArguments} from '../../src/config/mcp-options.js';
+import {
+  DAEMON_SCRIPT_PATH,
+  serializeArgs,
+  assertValidSessionId,
+  getSocketPath,
+  getRuntimeHome,
+  getPidFilePath,
+  getDaemonPid,
+  isDaemonRunning,
+  IS_WINDOWS,
+} from '../../src/daemon/utils.js';
 import type {YargsOptions} from '../../src/third_party/index.js';
+import {createTempDir} from '../utils.js';
+
+const APP_NAME = 'chrome-devtools-mcp';
+const SESSION_ID = 'aabbccdd-1122-3344-5566-77889900aabb';
+
+describe('assertValidSessionId', () => {
+  it('should not throw for empty sessionId', () => {
+    assert.doesNotThrow(() => assertValidSessionId(''));
+  });
+
+  it('should not throw for valid UUID', () => {
+    assert.doesNotThrow(() =>
+      assertValidSessionId('123e4567-e89b-12d3-a456-426614174000'),
+    );
+    assert.doesNotThrow(() =>
+      assertValidSessionId('aabbccdd-1122-3344-5566-77889900aabb'),
+    );
+  });
+
+  it('should throw for invalid sessionId formats', () => {
+    assert.throws(
+      () => assertValidSessionId('../../../etc/passwd'),
+      /Invalid sessionId/,
+    );
+    assert.throws(
+      () => assertValidSessionId('sessionId_with_underscore'),
+      /Invalid sessionId/,
+    );
+    assert.throws(
+      () => assertValidSessionId('session@id'),
+      /Invalid sessionId/,
+    );
+  });
+});
 
 describe('serializeArgs', () => {
   it('should ignore undefined or null values', () => {
@@ -26,7 +78,7 @@ describe('serializeArgs', () => {
       $0: 'test',
     } as unknown as ParsedArguments;
     const result = serializeArgs(options, argv);
-    assert.deepStrictEqual(result, ['--baz', 'value']);
+    assert.deepStrictEqual(result, ['--baz=value']);
   });
 
   it('should handle boolean values', () => {
@@ -41,15 +93,24 @@ describe('serializeArgs', () => {
     assert.deepStrictEqual(result, ['--foo', '--no-bar']);
   });
 
-  it('should handle array values', () => {
-    const options: Record<string, YargsOptions> = {foo: {}};
+  it('should handle array values including hyphenated flags', () => {
+    const options: Record<string, YargsOptions> = {foo: {}, chromeArg: {}};
     const argv = {
       foo: ['val1', 'val2'],
+      chromeArg: [
+        '--use-fake-device-for-media-stream',
+        '--use-file-for-fake-audio-capture=/tmp/test.wav',
+      ],
       _: [],
       $0: 'test',
     } as unknown as ParsedArguments;
     const result = serializeArgs(options, argv);
-    assert.deepStrictEqual(result, ['--foo', 'val1', '--foo', 'val2']);
+    assert.deepStrictEqual(result, [
+      '--foo=val1',
+      '--foo=val2',
+      '--chrome-arg=--use-fake-device-for-media-stream',
+      '--chrome-arg=--use-file-for-fake-audio-capture=/tmp/test.wav',
+    ]);
   });
 
   it('should handle primitive values', () => {
@@ -61,7 +122,22 @@ describe('serializeArgs', () => {
       $0: 'test',
     } as unknown as ParsedArguments;
     const result = serializeArgs(options, argv);
-    assert.deepStrictEqual(result, ['--foo', 'string', '--bar', '42']);
+    assert.deepStrictEqual(result, ['--foo=string', '--bar=42']);
+  });
+
+  it('should serialize object values as JSON', () => {
+    const options: Record<string, YargsOptions> = {wsHeaders: {}};
+    const argv = {
+      wsHeaders: {
+        Authorization: 'Bearer token',
+      },
+      _: [],
+      $0: 'test',
+    } as unknown as ParsedArguments;
+    const result = serializeArgs(options, argv);
+    assert.deepStrictEqual(result, [
+      '--ws-headers={"Authorization":"Bearer token"}',
+    ]);
   });
 
   it('should convert camelCase keys to kebab-case', () => {
@@ -77,9 +153,350 @@ describe('serializeArgs', () => {
     } as unknown as ParsedArguments;
     const result = serializeArgs(options, argv);
     assert.deepStrictEqual(result, [
-      '--camel-case-key',
-      'value1',
+      '--camel-case-key=value1',
       '--another-key',
     ]);
+  });
+});
+
+describe('getRuntimeHome', () => {
+  let savedXdgRuntimeDir: string | undefined;
+
+  beforeEach(() => {
+    savedXdgRuntimeDir = process.env['XDG_RUNTIME_DIR'];
+  });
+
+  afterEach(() => {
+    if (savedXdgRuntimeDir === undefined) {
+      delete process.env['XDG_RUNTIME_DIR'];
+    } else {
+      process.env['XDG_RUNTIME_DIR'] = savedXdgRuntimeDir;
+    }
+  });
+
+  it('uses XDG_RUNTIME_DIR when set', () => {
+    const xdgDir = path.join(os.tmpdir(), 'xdg-test');
+    process.env['XDG_RUNTIME_DIR'] = xdgDir;
+    assert.strictEqual(getRuntimeHome(''), path.join(xdgDir, APP_NAME));
+    assert.strictEqual(
+      getRuntimeHome(SESSION_ID),
+      path.join(xdgDir, `${APP_NAME}-${SESSION_ID}`),
+    );
+  });
+
+  it(
+    'falls back to /tmp with the uid when XDG_RUNTIME_DIR is unset',
+    {skip: IS_WINDOWS},
+    () => {
+      delete process.env['XDG_RUNTIME_DIR'];
+      const uid = os.userInfo().uid;
+      assert.strictEqual(getRuntimeHome(''), `/tmp/${APP_NAME}-${uid}`);
+      assert.strictEqual(
+        getRuntimeHome(SESSION_ID),
+        `/tmp/${APP_NAME}-${SESSION_ID}-${uid}`,
+      );
+    },
+  );
+
+  it(
+    'falls back to os.tmpdir() on Windows when XDG_RUNTIME_DIR is unset',
+    {skip: !IS_WINDOWS},
+    () => {
+      delete process.env['XDG_RUNTIME_DIR'];
+      assert.strictEqual(getRuntimeHome(''), path.join(os.tmpdir(), APP_NAME));
+    },
+  );
+
+  it('throws for invalid session ids', () => {
+    assert.throws(() => getRuntimeHome('../escape'), /Invalid sessionId/);
+  });
+});
+
+describe('getSocketPath', () => {
+  let savedXdgRuntimeDir: string | undefined;
+
+  beforeEach(() => {
+    savedXdgRuntimeDir = process.env['XDG_RUNTIME_DIR'];
+  });
+
+  afterEach(() => {
+    if (savedXdgRuntimeDir === undefined) {
+      delete process.env['XDG_RUNTIME_DIR'];
+    } else {
+      process.env['XDG_RUNTIME_DIR'] = savedXdgRuntimeDir;
+    }
+  });
+
+  it('uses XDG_RUNTIME_DIR when set', {skip: IS_WINDOWS}, () => {
+    const xdgDir = path.join(os.tmpdir(), 'xdg-test');
+    process.env['XDG_RUNTIME_DIR'] = xdgDir;
+    assert.strictEqual(
+      getSocketPath(''),
+      path.join(xdgDir, APP_NAME, 'server.sock'),
+    );
+    assert.strictEqual(
+      getSocketPath(SESSION_ID),
+      path.join(xdgDir, `${APP_NAME}-${SESSION_ID}`, 'server.sock'),
+    );
+  });
+
+  it(
+    'falls back to the private runtime directory when XDG_RUNTIME_DIR is unset',
+    {skip: IS_WINDOWS},
+    () => {
+      delete process.env['XDG_RUNTIME_DIR'];
+      assert.strictEqual(
+        getSocketPath(''),
+        path.join(getRuntimeHome(''), 'server.sock'),
+      );
+      assert.strictEqual(
+        getSocketPath(SESSION_ID),
+        path.join(getRuntimeHome(SESSION_ID), 'server.sock'),
+      );
+    },
+  );
+
+  it(
+    'stays under the POSIX socket path length limit for UUID session ids',
+    {skip: IS_WINDOWS},
+    () => {
+      delete process.env['XDG_RUNTIME_DIR'];
+      // macOS limits sun_path to 104 characters.
+      assert.ok(getSocketPath(SESSION_ID).length < 104);
+    },
+  );
+
+  it('uses a named pipe on Windows', {skip: !IS_WINDOWS}, () => {
+    const socketPath = getSocketPath(SESSION_ID);
+    assert.ok(socketPath.startsWith('\\\\.\\pipe\\'));
+    assert.ok(socketPath.includes(SESSION_ID));
+    // The username is appended to prevent cross-user pipe squatting.
+    assert.ok(socketPath.includes(os.userInfo().username));
+  });
+
+  it('throws for invalid session ids', () => {
+    assert.throws(() => getSocketPath('../escape'), /Invalid sessionId/);
+  });
+});
+
+describe('getPidFilePath', () => {
+  it('is daemon.pid inside the runtime home', () => {
+    assert.strictEqual(
+      getPidFilePath(SESSION_ID),
+      path.join(getRuntimeHome(SESSION_ID), 'daemon.pid'),
+    );
+    assert.strictEqual(path.basename(getPidFilePath('')), 'daemon.pid');
+  });
+
+  it('throws for invalid session ids', () => {
+    assert.throws(() => getPidFilePath('../escape'), /Invalid sessionId/);
+  });
+});
+
+describe('daemon pid handling', () => {
+  let savedXdgRuntimeDir: string | undefined;
+
+  beforeEach(() => {
+    savedXdgRuntimeDir = process.env['XDG_RUNTIME_DIR'];
+  });
+
+  afterEach(() => {
+    if (savedXdgRuntimeDir === undefined) {
+      delete process.env['XDG_RUNTIME_DIR'];
+    } else {
+      process.env['XDG_RUNTIME_DIR'] = savedXdgRuntimeDir;
+    }
+  });
+
+  function writePidFile(sessionId: string, contents: string): void {
+    const pidFile = getPidFilePath(sessionId);
+    fs.mkdirSync(path.dirname(pidFile), {recursive: true});
+    fs.writeFileSync(pidFile, contents);
+  }
+
+  describe('getDaemonPid', () => {
+    it('returns null when no pid file exists', () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      assert.strictEqual(getDaemonPid(SESSION_ID), null);
+    });
+
+    it('reads the pid from the pid file, ignoring whitespace', () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      writePidFile(SESSION_ID, '12345\n');
+      assert.strictEqual(getDaemonPid(SESSION_ID), 12345);
+    });
+
+    it('is scoped per session id', () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      writePidFile(SESSION_ID, '12345\n');
+      assert.strictEqual(getDaemonPid('00000000-0000'), null);
+    });
+
+    it('returns null for empty or non-numeric pid files', () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      writePidFile(SESSION_ID, '');
+      assert.strictEqual(getDaemonPid(SESSION_ID), null);
+      writePidFile(SESSION_ID, 'not-a-pid');
+      assert.strictEqual(getDaemonPid(SESSION_ID), null);
+    });
+
+    it('parses the leading integer of malformed contents', () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      // Documents current parseInt-based behavior.
+      writePidFile(SESSION_ID, '123abc');
+      assert.strictEqual(getDaemonPid(SESSION_ID), 123);
+    });
+  });
+
+  describe('isDaemonRunning', () => {
+    it('returns false when no pid file exists', () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      assert.strictEqual(isDaemonRunning(SESSION_ID), false);
+    });
+
+    it('returns true when the pid file points to a live daemon process', () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      const child = spawn(
+        process.execPath,
+        ['-e', 'setInterval(() => {}, 1000)', DAEMON_SCRIPT_PATH],
+        {stdio: 'ignore'},
+      );
+      child.unref();
+      assert.ok(child.pid);
+      try {
+        writePidFile(SESSION_ID, `${child.pid}\n`);
+        assert.strictEqual(isDaemonRunning(SESSION_ID), true);
+      } finally {
+        child.kill();
+      }
+    });
+
+    it('caches the verified process identity across repeated checks', async () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      const child = spawn(
+        process.execPath,
+        ['-e', 'setInterval(() => {}, 1000)', DAEMON_SCRIPT_PATH],
+        {stdio: 'ignore'},
+      );
+      assert.ok(child.pid);
+      try {
+        writePidFile(SESSION_ID, `${child.pid}\n`);
+        assert.strictEqual(isDaemonRunning(SESSION_ID), true);
+
+        const readFileSyncSpy = sinon.spy(fs, 'readFileSync');
+        const execFileSyncSpy = sinon.spy(childProcess, 'execFileSync');
+
+        assert.strictEqual(isDaemonRunning(SESSION_ID), true);
+        sinon.assert.calledOnceWithExactly(
+          readFileSyncSpy,
+          getPidFilePath(SESSION_ID),
+          sinon.match('utf-8'),
+        );
+        sinon.assert.notCalled(execFileSyncSpy);
+
+        child.kill();
+        await once(child, 'exit');
+        assert.strictEqual(isDaemonRunning(SESSION_ID), false);
+      } finally {
+        child.kill();
+        child.unref();
+      }
+    });
+
+    it('returns false when the pid file points to an unrelated live process', () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      writePidFile(SESSION_ID, `${process.pid}\n`);
+      assert.strictEqual(isDaemonRunning(SESSION_ID), false);
+    });
+
+    it('falls back to true when command line lookup throws for a live process', () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      const child = spawn(
+        process.execPath,
+        ['-e', 'setInterval(() => {}, 1000)'],
+        {stdio: 'ignore'},
+      );
+      child.unref();
+      assert.ok(child.pid);
+      try {
+        writePidFile(SESSION_ID, `${child.pid}\n`);
+        sinon
+          .stub(fs, 'existsSync')
+          .callThrough()
+          .withArgs('/proc')
+          .returns(false);
+        sinon
+          .stub(childProcess, 'execFileSync')
+          .throws(new Error('lookup failed'));
+
+        assert.strictEqual(isDaemonRunning(SESSION_ID), true);
+      } finally {
+        child.kill();
+      }
+    });
+
+    it('falls back to true when command line lookup returns an empty string for a live process', () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      const child = spawn(
+        process.execPath,
+        ['-e', 'setInterval(() => {}, 1000)'],
+        {stdio: 'ignore'},
+      );
+      child.unref();
+      assert.ok(child.pid);
+      try {
+        writePidFile(SESSION_ID, `${child.pid}\n`);
+        sinon
+          .stub(fs, 'existsSync')
+          .callThrough()
+          .withArgs('/proc')
+          .returns(false);
+        sinon.stub(childProcess, 'execFileSync').returns('\r\n');
+
+        assert.strictEqual(isDaemonRunning(SESSION_ID), true);
+      } finally {
+        child.kill();
+      }
+    });
+
+    it('returns false when the pid file points to a dead process', async () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      const child = spawn(process.execPath, ['--version'], {stdio: 'ignore'});
+      await once(child, 'exit');
+      assert.ok(child.pid);
+      // In theory the OS could reuse the pid between the child exiting and
+      // this check, but pid reuse within milliseconds is practically
+      // impossible on all supported platforms.
+      writePidFile(SESSION_ID, `${child.pid}\n`);
+      assert.strictEqual(isDaemonRunning(SESSION_ID), false);
+    });
+
+    it('returns false when the pid file contains 0', () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      // Important: signaling pid 0 would target the whole process group, so
+      // isDaemonRunning must not treat it as a live daemon.
+      writePidFile(SESSION_ID, '0');
+      assert.strictEqual(isDaemonRunning(SESSION_ID), false);
+    });
+
+    it('returns false for non-numeric pid files', () => {
+      using tempDir = createTempDir('cdm-daemon-utils-test-');
+      process.env['XDG_RUNTIME_DIR'] = tempDir.path;
+      writePidFile(SESSION_ID, 'garbage');
+      assert.strictEqual(isDaemonRunning(SESSION_ID), false);
+    });
   });
 });
