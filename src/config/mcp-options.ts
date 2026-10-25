@@ -195,7 +195,7 @@ export const mcpOptions: McpOptions = {
     type: 'boolean',
     default: true,
     describe:
-      'Set to false to opt-out of usage statistics collection. Google collects usage data to improve the tool, handled under the Google Privacy Policy (https://policies.google.com/privacy). This is independent from Chrome browser metrics. Disabled if `CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS` or `CI` env variables are set.',
+      'Set to false to opt-out of usage statistics collection. Google collects usage data to improve the tool, handled under the Google Privacy Policy (https://policies.google.com/privacy). This is independent from Chrome browser metrics. Disabled if `BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS` or `CI` env variables are set.',
   },
   javascriptEvaluation: {
     type: 'boolean',
@@ -407,7 +407,7 @@ export const CLI_EXAMPLES: Array<[string, string]> = [
   ],
   [
     '$0 --no-usage-statistics',
-    'Do not send usage statistics https://github.com/ChromeDevTools/chrome-devtools-mcp#usage-statistics.',
+    'Do not send usage statistics https://github.com/neolivz/brave-devtools-mcp#usage-statistics.',
   ],
   [
     '$0 --no-performance-crux',

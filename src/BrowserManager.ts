@@ -110,8 +110,8 @@ export class BrowserManager {
     }
     return new Error(
       `Chrome failed to start: ${error.message}\n\n` +
-        'chrome-devtools-mcp is running as root and Chrome does not start as root ' +
-        '(https://crbug.com/638180). Run chrome-devtools-mcp as a non-root user; in a ' +
+        'brave-devtools-mcp is running as root and Chrome does not start as root ' +
+        '(https://crbug.com/638180). Run brave-devtools-mcp as a non-root user; in a ' +
         'container, create an unprivileged user in the image and switch to it with ' +
         "USER. For the setup that Chrome's sandbox needs, see " +
         'https://pptr.dev/troubleshooting#setting-up-chrome-linux-sandbox.',
@@ -235,7 +235,7 @@ export class BrowserManager {
       userDataDir = path.join(
         os.homedir(),
         '.cache',
-        viaCli ? 'chrome-devtools-mcp-cli' : 'chrome-devtools-mcp',
+        viaCli ? 'brave-devtools-mcp-cli' : 'brave-devtools-mcp',
         profileDirName,
       );
       await fs.promises.mkdir(userDataDir, {

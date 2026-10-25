@@ -21,7 +21,7 @@ import {
   stripUnderscoreBeforeNumber,
 } from './transformation.js';
 import {
-  type ChromeDevToolsMcpExtension,
+  type BraveDevToolsMcpExtension,
   McpClient,
   type FlagUsage,
   WatchdogMessageType,
@@ -165,9 +165,9 @@ export class ClearcutLogger {
   }
 
   #addMcpClient(
-    payload: ChromeDevToolsMcpExtension,
-  ): ChromeDevToolsMcpExtension {
-    const ext: ChromeDevToolsMcpExtension = {
+    payload: BraveDevToolsMcpExtension,
+  ): BraveDevToolsMcpExtension {
+    const ext: BraveDevToolsMcpExtension = {
       ...payload,
       mcp_client: this.#mcpClient,
     };

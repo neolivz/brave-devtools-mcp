@@ -8,7 +8,7 @@ import crypto from 'node:crypto';
 
 import {logger} from '../../utils/logger.js';
 import type {
-  ChromeDevToolsMcpExtension,
+  BraveDevToolsMcpExtension,
   LogRequest,
   LogResponse,
   OsType,
@@ -35,7 +35,7 @@ const SHUTDOWN_TIMEOUT_MS = 5_000;
 const SESSION_ROTATION_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 interface BufferedEvent {
-  event: ChromeDevToolsMcpExtension;
+  event: BraveDevToolsMcpExtension;
   timestamp: number;
 }
 
@@ -64,7 +64,7 @@ export class ClearcutSender {
     this.#sessionCreated = Date.now();
   }
 
-  enqueueEvent(event: ChromeDevToolsMcpExtension): void {
+  enqueueEvent(event: BraveDevToolsMcpExtension): void {
     if (Date.now() - this.#sessionCreated > SESSION_ROTATION_INTERVAL_MS) {
       this.#sessionId = crypto.randomUUID();
       this.#sessionCreated = Date.now();
@@ -91,7 +91,7 @@ export class ClearcutSender {
       this.#flushTimer = null;
     }
 
-    const shutdownEvent: ChromeDevToolsMcpExtension = {
+    const shutdownEvent: BraveDevToolsMcpExtension = {
       server_shutdown: {},
     };
     this.enqueueEvent(shutdownEvent);
@@ -156,7 +156,7 @@ export class ClearcutSender {
     }
   }
 
-  #addToBuffer(event: ChromeDevToolsMcpExtension): void {
+  #addToBuffer(event: BraveDevToolsMcpExtension): void {
     if (this.#buffer.length >= MAX_BUFFER_SIZE) {
       this.#buffer.shift();
       logger?.('Telemetry buffer overflow: dropped oldest event');

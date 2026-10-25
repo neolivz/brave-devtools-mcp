@@ -10,7 +10,7 @@ import {describe, it, afterEach, beforeEach} from 'node:test';
 
 import {runCli, stopDaemonForCleanup} from '../utils.js';
 
-describe('chrome-devtools', () => {
+describe('brave-devtools', () => {
   let sessionId: string;
 
   beforeEach(() => {
@@ -29,7 +29,7 @@ describe('chrome-devtools', () => {
       `start command failed: ${result.stderr}`,
     );
     assert(
-      result.stderr.includes('chrome-devtools-mcp exposes content'),
+      result.stderr.includes('brave-devtools-mcp exposes content'),
       'Disclaimer not found in stderr on start',
     );
   });

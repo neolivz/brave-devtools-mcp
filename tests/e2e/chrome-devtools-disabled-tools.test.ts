@@ -10,7 +10,7 @@ import {describe, it} from 'node:test';
 import {createCliSession, runCli} from '../utils.js';
 
 // Each test uses its own daemon session, so the tests run in parallel.
-describe('chrome-devtools', {concurrency: true}, () => {
+describe('brave-devtools', {concurrency: true}, () => {
   it('fails to invoke list_network_requests when categoryNetwork is disabled', async t => {
     const sessionId = createCliSession(t);
     await runCli(['start', '--categoryNetwork=false'], sessionId);
@@ -25,7 +25,7 @@ describe('chrome-devtools', {concurrency: true}, () => {
       'error message is unexpected: ' + result.stdout,
     );
     assert(
-      result.stdout.includes('chrome-devtools start --categoryNetwork=true'),
+      result.stdout.includes('brave-devtools start --categoryNetwork=true'),
       'restart command suggestion is missing: ' + result.stdout,
     );
   });
@@ -43,7 +43,7 @@ describe('chrome-devtools', {concurrency: true}, () => {
       'error message is unexpected: ' + result.stdout,
     );
     assert(
-      result.stdout.includes('chrome-devtools start --experimentalVision=true'),
+      result.stdout.includes('brave-devtools start --experimentalVision=true'),
       'restart command suggestion is miss: ' + result.stdout,
     );
   });
@@ -79,7 +79,7 @@ describe('chrome-devtools', {concurrency: true}, () => {
     );
     assert(
       result.stdout.includes(
-        'chrome-devtools start --javascriptEvaluation=true',
+        'brave-devtools start --javascriptEvaluation=true',
       ),
       'restart command suggestion is missing: ' + result.stdout,
     );

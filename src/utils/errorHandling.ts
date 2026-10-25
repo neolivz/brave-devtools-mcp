@@ -16,7 +16,7 @@ export function setupUnhandledRejectionHandler(onCrash: () => void): void {
     logger?.('Unhandled promise rejection:', promise, reason);
     console.error('Unhandled promise rejection:', reason);
 
-    if (process.env['CHROME_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT'] === 'true') {
+    if (process.env['BRAVE_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT'] === 'true') {
       onCrash();
     }
   });

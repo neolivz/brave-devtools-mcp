@@ -15,8 +15,8 @@ const PLUGIN_DATA = path.resolve('/plugins/data/chrome-devtools');
 const XDG_CONFIG_HOME = path.resolve('/xdg/config');
 
 const PLUGIN_CONFIG = path.join(PLUGIN_DATA, 'cd4a.config.json');
-const XDG_CONFIG = path.join(XDG_CONFIG_HOME, 'cd4a', 'config.json');
-const HOME_CONFIG = path.join(HOME, '.config', 'cd4a', 'config.json');
+const XDG_CONFIG = path.join(XDG_CONFIG_HOME, 'brave-devtools-mcp', 'config.json');
+const HOME_CONFIG = path.join(HOME, '.config', 'brave-devtools-mcp', 'config.json');
 
 class TestConfigLocator extends ConfigLocator {
   #files: Set<string>;
@@ -89,7 +89,7 @@ describe('ConfigLocator', () => {
           {LOCALAPPDATA: localAppData},
           'win32',
         ).getGlobalConfigPath(),
-        path.join(localAppData, 'Google', 'cd4a', 'config.json'),
+        path.join(localAppData, 'brave-devtools-mcp', 'config.json'),
       );
     });
 
@@ -113,7 +113,7 @@ describe('ConfigLocator', () => {
       assert.strictEqual(
         new TestConfigLocator([PLUGIN_CONFIG, HOME_CONFIG], {
           PLUGIN_DATA,
-          CHROME_DEVTOOLS_MCP_NO_CONFIG_DISCOVERY: 'true',
+          BRAVE_DEVTOOLS_MCP_NO_CONFIG_DISCOVERY: 'true',
         }).locate(),
         undefined,
       );

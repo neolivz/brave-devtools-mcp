@@ -104,7 +104,7 @@ export class McpServer {
 
     this.server = new SdkMcpServer(
       {
-        name: 'chrome_devtools',
+        name: 'brave_devtools',
         title: 'Chrome DevTools MCP server',
         version: VERSION,
       },
@@ -146,7 +146,7 @@ export class McpServer {
           this.#config.resolved.filesystemRoot === DEFAULT_FILESYSTEM_ROOT)
       ) {
         console.warn(
-          '[chrome-devtools-mcp] The connecting client did not negotiate the MCP roots ' +
+          '[brave-devtools-mcp] The connecting client did not negotiate the MCP roots ' +
             'capability. Tools that read or write local files will be restricted to the OS temp directory. ' +
             'To restore the previous unrestricted behavior, start the server with ' +
             '--allow-unrestricted-paths.',
@@ -282,7 +282,7 @@ export class McpServer {
     const restartRequired = this.#config.getRestartRequiredChanges(config);
     logger?.(`Applied config changes from ${configPath}`);
     if (restartRequired.length > 0) {
-      const message = `Restart chrome-devtools-mcp to fully apply changes to ${restartRequired.map(name => `--${name}`).join(', ')} from ${configPath}.`;
+      const message = `Restart brave-devtools-mcp to fully apply changes to ${restartRequired.map(name => `--${name}`).join(', ')} from ${configPath}.`;
       logger?.(message);
       console.error(message);
     }

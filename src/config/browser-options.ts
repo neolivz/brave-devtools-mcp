@@ -33,7 +33,7 @@ export const browserOptions: BrowserOptions = {
   browserUrl: {
     type: 'string',
     description:
-      'Connect to a running, debuggable Chrome instance (e.g. `http://127.0.0.1:9222`). For more details see: https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/advanced-usage.md#connecting-to-a-running-chrome-instance.',
+      'Connect to a running, debuggable Chrome instance (e.g. `http://127.0.0.1:9222`). For more details see: https://github.com/neolivz/brave-devtools-mcp/blob/main/docs/advanced-usage.md#connecting-to-a-running-chrome-instance.',
     alias: 'u',
     coerce: (url: string | undefined): string | undefined => {
       if (!url) {
@@ -140,13 +140,13 @@ export const browserOptions: BrowserOptions = {
     type: 'array',
     string: true,
     describe:
-      'Additional arguments for Chrome. Only applies when Chrome is launched by chrome-devtools-mcp.',
+      'Additional arguments for Chrome. Only applies when Chrome is launched by brave-devtools-mcp.',
   },
   ignoreDefaultChromeArg: {
     type: 'array',
     string: true,
     describe:
-      'Explicitly disable default arguments for Chrome. Only applies when Chrome is launched by chrome-devtools-mcp.',
+      'Explicitly disable default arguments for Chrome. Only applies when Chrome is launched by brave-devtools-mcp.',
   },
 };
 

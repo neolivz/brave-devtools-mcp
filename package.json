@@ -1,11 +1,11 @@
 {
-  "name": "chrome-devtools-mcp",
+  "name": "brave-devtools-mcp",
   "version": "1.12.0",
-  "description": "MCP server for Chrome DevTools",
+  "description": "MCP server for Brave DevTools",
   "type": "module",
   "bin": {
-    "chrome-devtools-mcp": "./build/src/bin/chrome-devtools-mcp.js",
-    "chrome-devtools": "./build/src/bin/chrome-devtools.js"
+    "brave-devtools-mcp": "./build/src/bin/brave-devtools-mcp.js",
+    "brave-devtools": "./build/src/bin/brave-devtools.js"
   },
   "main": "./build/src/index.js",
   "scripts": {
@@ -19,8 +19,8 @@
     "check-format": "eslint --cache . && prettier --check --cache .",
     "gen": "npm run build && npm run cli:generate && npm run docs:generate && npm run update-metrics && npm run format",
     "docs:generate": "node scripts/generate-docs.ts",
-    "start": "npm run build && node build/src/bin/chrome-devtools-mcp.js",
-    "start-debug": "NODE_DEBUG=mcp:* npm run build && node build/src/bin/chrome-devtools-mcp.js",
+    "start": "npm run build && node build/src/bin/brave-devtools-mcp.js",
+    "start-debug": "NODE_DEBUG=mcp:* npm run build && node build/src/bin/brave-devtools-mcp.js",
     "test": "npm run build && node scripts/test.js --test-skip-pattern=THIRD_PARTY_NOTICES",
     "test:no-build": "node scripts/test.js --test-skip-pattern=THIRD_PARTY_NOTICES",
     "test:notices": "npm run bundle && node scripts/test.js tests/third_party_notices.test.ts",
@@ -46,14 +46,17 @@
     "!**/*.js.map",
     "!**/*.d.ts"
   ],
-  "repository": "ChromeDevTools/chrome-devtools-mcp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/neolivz/brave-devtools-mcp.git"
+  },
   "author": "Google LLC",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/ChromeDevTools/chrome-devtools-mcp/issues"
+    "url": "https://github.com/neolivz/brave-devtools-mcp/issues"
   },
-  "homepage": "https://github.com/ChromeDevTools/chrome-devtools-mcp#readme",
-  "mcpName": "io.github.ChromeDevTools/chrome-devtools-mcp",
+  "homepage": "https://github.com/neolivz/brave-devtools-mcp#readme",
+  "mcpName": "io.github.neolivz/brave-devtools-mcp",
   "devDependencies": {
     "@blackwell-systems/gcf": "^2.2.2",
     "@google/genai": "^2.0.1",

@@ -19,7 +19,7 @@ import {
 } from '../utils.js';
 
 // Each test uses its own daemon session, so the tests run in parallel.
-describe('chrome-devtools', {concurrency: true}, () => {
+describe('brave-devtools', {concurrency: true}, () => {
   it('can invoke list_pages', async t => {
     const sessionId = createCliSession(t);
     const startResult = await runCli(['start'], sessionId);

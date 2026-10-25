@@ -964,7 +964,7 @@ export class McpResponse implements Response {
         throw new Error(
           'The `@toon-format/toon` package is required to use --experimentalDataFormat=toon. ' +
             'Make sure the peer dependency is installed:\n' +
-            '- For npx: npx --package chrome-devtools-mcp@latest --package @toon-format/toon@latest chrome-devtools-mcp --experimentalDataFormat=toon\n' +
+            '- For npx: npx --package brave-devtools-mcp@latest --package @toon-format/toon@latest brave-devtools-mcp --experimentalDataFormat=toon\n' +
             '- For npm: npm install @toon-format/toon (add -g if installed globally)',
         );
       }
@@ -975,7 +975,7 @@ export class McpResponse implements Response {
         throw new Error(
           'The `@blackwell-systems/gcf` package is required to use --experimentalDataFormat=gcf. ' +
             'Make sure the peer dependency is installed:\n' +
-            '- For npx: npx --package chrome-devtools-mcp@latest --package @blackwell-systems/gcf@latest chrome-devtools-mcp --experimentalDataFormat=gcf\n' +
+            '- For npx: npx --package brave-devtools-mcp@latest --package @blackwell-systems/gcf@latest brave-devtools-mcp --experimentalDataFormat=gcf\n' +
             '- For npm: npm install @blackwell-systems/gcf (add -g if installed globally)',
         );
       }

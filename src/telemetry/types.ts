@@ -7,7 +7,7 @@
 import type {ErrorCode} from './errors.js';
 
 // Protobuf message interfaces
-export interface ChromeDevToolsMcpExtension {
+export interface BraveDevToolsMcpExtension {
   os_type?: OsType;
   mcp_client?: McpClient;
   raw_mcp_client_info?: RawMcpClientInfo;
@@ -118,5 +118,5 @@ export enum WatchdogMessageType {
 
 export interface WatchdogMessage {
   type: WatchdogMessageType.LOG_EVENT;
-  payload: ChromeDevToolsMcpExtension;
+  payload: BraveDevToolsMcpExtension;
 }

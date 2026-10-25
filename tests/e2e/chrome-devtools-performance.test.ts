@@ -10,7 +10,7 @@ import {describe, it, afterEach, beforeEach} from 'node:test';
 
 import {runCli, stopDaemonForCleanup} from '../utils.js';
 
-describe('chrome-devtools', () => {
+describe('brave-devtools', () => {
   let sessionId: string;
 
   beforeEach(() => {

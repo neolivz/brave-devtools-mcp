@@ -61,7 +61,7 @@ describe('daemon security checks', () => {
 
     // Try to spawn the daemon
     const child = spawn(process.execPath, [DAEMON_SCRIPT_PATH], {
-      env: {...process.env, CHROME_DEVTOOLS_MCP_SESSION_ID: sessionId},
+      env: {...process.env, BRAVE_DEVTOOLS_MCP_SESSION_ID: sessionId},
     });
 
     const exitCode = await new Promise<number | null>(resolve => {
@@ -98,7 +98,7 @@ describe('daemon security checks', () => {
     const pidDir = path.dirname(pidFilePath);
     const targetDir = path.join(
       path.dirname(pidDir),
-      `chrome-devtools-mcp-client-symlink-target-${sessionId}`,
+      `brave-devtools-mcp-client-symlink-target-${sessionId}`,
     );
     const targetPidFile = path.join(targetDir, 'daemon.pid');
 
@@ -139,7 +139,7 @@ describe('daemon security checks', () => {
     const pidDir = path.dirname(pidFilePath);
     const targetDir = path.join(
       path.dirname(pidDir),
-      `chrome-devtools-mcp-symlink-target-${sessionId}`,
+      `brave-devtools-mcp-symlink-target-${sessionId}`,
     );
     const targetPidFile = path.join(targetDir, 'daemon.pid');
 
@@ -151,7 +151,7 @@ describe('daemon security checks', () => {
       const child = spawn(process.execPath, [DAEMON_SCRIPT_PATH], {
         env: {
           ...process.env,
-          CHROME_DEVTOOLS_MCP_SESSION_ID: sessionId,
+          BRAVE_DEVTOOLS_MCP_SESSION_ID: sessionId,
         },
       });
 
@@ -200,7 +200,7 @@ describe('daemon security checks', () => {
 
     // Try to spawn the daemon
     const child = spawn(process.execPath, [DAEMON_SCRIPT_PATH], {
-      env: {...process.env, CHROME_DEVTOOLS_MCP_SESSION_ID: sessionId},
+      env: {...process.env, BRAVE_DEVTOOLS_MCP_SESSION_ID: sessionId},
     });
 
     const exitCode = await new Promise<number | null>(resolve => {

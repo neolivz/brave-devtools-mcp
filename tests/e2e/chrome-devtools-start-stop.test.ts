@@ -18,7 +18,7 @@ import {
 } from '../utils.js';
 
 // Each test uses its own daemon session, so the tests run in parallel.
-describe('chrome-devtools', {concurrency: true}, () => {
+describe('brave-devtools', {concurrency: true}, () => {
   it('can start and stop the daemon', async t => {
     const sessionId = createCliSession(t);
     await assertDaemonIsNotRunning(sessionId);
@@ -44,7 +44,7 @@ describe('chrome-devtools', {concurrency: true}, () => {
 
   it('can start the daemon with userDataDir', async t => {
     const sessionId = createCliSession(t);
-    using userDataDir = createTempDir('chrome-devtools-test-');
+    using userDataDir = createTempDir('brave-devtools-test-');
 
     const startResult = await runCli(
       ['start', '--userDataDir', userDataDir.path],
@@ -84,7 +84,7 @@ describe('chrome-devtools', {concurrency: true}, () => {
 
   it('can start the daemon with a workspace', async t => {
     const sessionId = createCliSession(t);
-    using workspace = createTempDir('chrome-devtools-workspace-');
+    using workspace = createTempDir('brave-devtools-workspace-');
 
     const startResult = await runCli(
       ['start', '--workspace', workspace.path],
@@ -107,13 +107,13 @@ describe('chrome-devtools', {concurrency: true}, () => {
 
   it('can start the daemon with a config file', async t => {
     const sessionId = createCliSession(t);
-    using userDataDir = createTempDir('chrome-devtools-config-profile-');
+    using userDataDir = createTempDir('brave-devtools-config-profile-');
     using configFile = createTempFile(
       JSON.stringify({
         userDataDir: userDataDir.path,
         headless: true,
       }),
-      'chrome-devtools-config.json',
+      'brave-devtools-config.json',
     );
 
     const relativeConfigPath = path.relative(process.cwd(), configFile.path);

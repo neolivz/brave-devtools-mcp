@@ -23,7 +23,7 @@ import {mcpOptions} from '../config/mcp-options.js';
 import {ConfigParser} from '../config/ConfigParser.js';
 
 await checkForUpdates(
-  'Run `npm install chrome-devtools-mcp@latest` to update.',
+  'Run `npm install brave-devtools-mcp@latest` to update.',
 );
 
 const configParser = new ConfigParser(VERSION);

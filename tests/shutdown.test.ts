@@ -25,7 +25,7 @@ async function spawnServer(): Promise<Server> {
   const child = spawn(
     'node',
     [
-      'build/src/bin/chrome-devtools-mcp.js',
+      'build/src/bin/brave-devtools-mcp.js',
       '--headless',
       '--isolated',
       '--executable-path',
@@ -34,7 +34,7 @@ async function spawnServer(): Promise<Server> {
     {
       env: {
         ...process.env,
-        CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
+        BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
       },
       stdio: ['pipe', 'pipe', 'pipe'],
     },

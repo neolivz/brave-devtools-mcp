@@ -57,7 +57,7 @@ describe('ToolHandler', () => {
       '1.0.0',
       ['node', 'script.js', ...argv],
       {
-        CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
+        BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
       },
       false,
       locator,

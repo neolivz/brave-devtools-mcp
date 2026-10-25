@@ -27,21 +27,21 @@ describe('setupUnhandledRejectionHandler', () => {
   let originalEnvValue: string | undefined;
 
   beforeEach(() => {
-    originalEnvValue = process.env['CHROME_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT'];
-    delete process.env['CHROME_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT'];
+    originalEnvValue = process.env['BRAVE_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT'];
+    delete process.env['BRAVE_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT'];
   });
 
   afterEach(() => {
     mock.restoreAll();
     if (originalEnvValue === undefined) {
-      delete process.env['CHROME_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT'];
+      delete process.env['BRAVE_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT'];
     } else {
-      process.env['CHROME_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT'] = originalEnvValue;
+      process.env['BRAVE_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT'] = originalEnvValue;
     }
   });
 
-  it('crashes and logs if CHROME_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT is true', () => {
-    process.env['CHROME_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT'] = 'true';
+  it('crashes and logs if BRAVE_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT is true', () => {
+    process.env['BRAVE_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT'] = 'true';
     const onCrash = mock.fn();
     const consoleError = mock.method(console, 'error', () => undefined);
 

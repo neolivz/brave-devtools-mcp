@@ -467,33 +467,33 @@ describe('cli args parsing', () => {
   it('respects env variable', async () => {
     // Test default (should be true).
     const defaultArgs = parseConfig(['main.js'], {
-      CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
+      BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
     });
     assert.strictEqual(defaultArgs.usageStatistics, false);
 
     // Test enabling it
     const enabledArgs = parseConfig(['--usage-statistics'], {
-      CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
+      BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
     });
     assert.strictEqual(enabledArgs.usageStatistics, false);
 
     // Test disabling it
     const disabledArgs = parseConfig(['--no-usage-statistics'], {
-      CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
+      BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
     });
     assert.strictEqual(disabledArgs.usageStatistics, false);
   });
 
-  it('respects CHROME_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY env variable', async () => {
+  it('respects BRAVE_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY env variable', async () => {
     const enabledByEnv = parseConfig([], {
-      CHROME_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY: 'true',
+      BRAVE_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY: 'true',
     });
     assert.strictEqual(enabledByEnv.categoryExperimentalThirdParty, true);
 
     const disabledByCli = parseConfig(
       ['--no-category-experimental-third-party'],
       {
-        CHROME_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY: 'true',
+        BRAVE_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY: 'true',
       },
     );
     assert.strictEqual(disabledByCli.categoryExperimentalThirdParty, false);
@@ -503,7 +503,7 @@ describe('cli args parsing', () => {
       'cd4a.test.config.third-party.json',
     );
     const disabledByConfig = parseConfig(['--config', testConfig.path], {
-      CHROME_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY: 'true',
+      BRAVE_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY: 'true',
     });
     assert.strictEqual(disabledByConfig.categoryExperimentalThirdParty, false);
   });

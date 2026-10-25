@@ -28,7 +28,7 @@ function parseArgs(...argv: string[]) {
   return new ConfigParser(
     'test',
     ['node', 'test', ...argv],
-    {CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true'},
+    {BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true'},
     false,
     locator,
   ).parse();

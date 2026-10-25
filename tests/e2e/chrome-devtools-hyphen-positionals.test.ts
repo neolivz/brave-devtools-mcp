@@ -10,7 +10,7 @@ import {describe, it, after, before} from 'node:test';
 
 import {runCli, stopDaemonForCleanup} from '../utils.js';
 
-describe('chrome-devtools positional values starting with a hyphen', () => {
+describe('brave-devtools positional values starting with a hyphen', () => {
   const fillCases: Array<{value: string[]; expected: string}> = [
     {value: ['-'], expected: '-'},
     {value: ['-5'], expected: '-5'},

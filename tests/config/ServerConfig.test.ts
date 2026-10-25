@@ -227,7 +227,7 @@ describe('ServerConfig', () => {
       assert.strictEqual(reloaded.resolved.usageStatistics, false);
       sinon.assert.calledOnceWithExactly(
         consoleError,
-        "turning off usage statistics. process.env['CI'] || process.env['CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS'] is set.",
+        "turning off usage statistics. process.env['CI'] || process.env['BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS'] is set.",
       );
     });
   });

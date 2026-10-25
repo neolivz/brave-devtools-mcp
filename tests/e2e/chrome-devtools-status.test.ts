@@ -15,7 +15,7 @@ import {
   stopDaemonForCleanup,
 } from '../utils.js';
 
-describe('chrome-devtools', () => {
+describe('brave-devtools', () => {
   let sessionId: string;
 
   beforeEach(() => {

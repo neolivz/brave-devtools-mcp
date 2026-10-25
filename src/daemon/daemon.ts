@@ -36,7 +36,7 @@ import {
   assertValidSessionId,
 } from './utils.js';
 
-const sessionId = process.env.CHROME_DEVTOOLS_MCP_SESSION_ID || '';
+const sessionId = process.env.BRAVE_DEVTOOLS_MCP_SESSION_ID || '';
 assertValidSessionId(sessionId);
 logger?.(`Daemon sessionId: ${sessionId}`);
 if (isDaemonRunning(sessionId)) {

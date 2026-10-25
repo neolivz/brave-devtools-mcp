@@ -30,7 +30,7 @@ import {
 import type {YargsOptions} from '../../src/third_party/index.js';
 import {createTempDir} from '../utils.js';
 
-const APP_NAME = 'chrome-devtools-mcp';
+const APP_NAME = 'brave-devtools-mcp';
 const SESSION_ID = 'aabbccdd-1122-3344-5566-77889900aabb';
 
 describe('assertValidSessionId', () => {

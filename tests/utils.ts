@@ -470,7 +470,7 @@ export function getMockBrowser(options?: {
 }
 
 export const CLI_PATH: string = path.resolve(
-  'build/src/bin/chrome-devtools.js',
+  'build/src/bin/brave-devtools.js',
 );
 
 export async function runCli(
@@ -509,7 +509,7 @@ export async function assertDaemonIsNotRunning(
   const result = await runCli(['status'], sessionId);
   assert.strictEqual(
     result.stdout,
-    'chrome-devtools-mcp daemon is not running.\n',
+    'brave-devtools-mcp daemon is not running.\n',
   );
 }
 
@@ -537,8 +537,8 @@ export function createCliSession(t: TestContext): string {
 export async function assertDaemonIsRunning(sessionId?: string): Promise<void> {
   const result = await runCli(['status'], sessionId);
   assert.ok(
-    result.stdout.startsWith('chrome-devtools-mcp daemon is running.\n'),
-    'chrome-devtools-mcp daemon is not running',
+    result.stdout.startsWith('brave-devtools-mcp daemon is running.\n'),
+    'brave-devtools-mcp daemon is not running',
   );
 }
 
@@ -560,7 +560,7 @@ export async function waitExecutionFor(
 }
 
 export function createTempDir(
-  prefix = 'chrome-devtools-test-',
+  prefix = 'brave-devtools-test-',
   baseDir: string = os.tmpdir(),
 ): {
   path: string;
@@ -588,7 +588,7 @@ export function createTempFile(
   [Symbol.dispose]: () => void;
 } {
   const dirPath = fs.mkdtempSync(
-    path.join(baseDir, 'chrome-devtools-test-file-'),
+    path.join(baseDir, 'brave-devtools-test-file-'),
   );
   const filePath = path.join(dirPath, fileName);
   fs.writeFileSync(filePath, content);

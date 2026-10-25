@@ -41,7 +41,7 @@ describe('McpServer', () => {
       '1.0.0',
       ['node', 'script.js', ...argv],
       {
-        CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
+        BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS: 'true',
       },
       false,
       locator,
@@ -233,7 +233,7 @@ describe('McpServer', () => {
 
   describe('oninitialized', () => {
     const tempDirectoryWarning =
-      '[chrome-devtools-mcp] The connecting client did not negotiate the MCP roots ' +
+      '[brave-devtools-mcp] The connecting client did not negotiate the MCP roots ' +
       'capability. Tools that read or write local files will be restricted to the OS temp directory. ' +
       'To restore the previous unrestricted behavior, start the server with ' +
       '--allow-unrestricted-paths.';
@@ -775,7 +775,7 @@ describe('McpServer', () => {
       assert.strictEqual(watched.config.resolved.memoryDebugging, true);
       assert.strictEqual(watched.config.resolved.headless, false);
       assert.strictEqual(watched.config.resolved.categoryExtensions, undefined);
-      const expectedNotice = `Restart chrome-devtools-mcp to fully apply changes to --categoryExtensions, --headless from ${configFile.path}.`;
+      const expectedNotice = `Restart brave-devtools-mcp to fully apply changes to --categoryExtensions, --headless from ${configFile.path}.`;
       sinon.assert.calledOnceWithExactly(consoleError, expectedNotice);
       sinon.assert.calledTwice(watched.logStream.write);
       sinon.assert.calledWithMatch(

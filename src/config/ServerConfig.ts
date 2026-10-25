@@ -219,10 +219,10 @@ export class ServerConfig implements ReadonlyServerConfig {
       }
     }
 
-    if (env['CI'] || env['CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS']) {
+    if (env['CI'] || env['BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS']) {
       if (!options?.suppressUsageStatisticsNotice) {
         console.error(
-          "turning off usage statistics. process.env['CI'] || process.env['CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS'] is set.",
+          "turning off usage statistics. process.env['CI'] || process.env['BRAVE_DEVTOOLS_MCP_NO_USAGE_STATISTICS'] is set.",
         );
       }
       resolvedArgs.usageStatistics = false;
@@ -230,7 +230,7 @@ export class ServerConfig implements ReadonlyServerConfig {
 
     if (
       resolvedArgs.categoryExperimentalThirdParty === undefined &&
-      env['CHROME_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY']
+      env['BRAVE_DEVTOOLS_MCP_CATEGORY_EXPERIMENTAL_THIRD_PARTY']
     ) {
       resolvedArgs.categoryExperimentalThirdParty = true;
     }

@@ -1,13 +1,13 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
-    "chrome-devtools": {
+    "brave-devtools": {
       "type": "stdio",
       "command": "npx",
       "args": [
         "--prefix",
         "${PLUGIN_DATA}",
-        "chrome-devtools-mcp@1.12.0"
+        "brave-devtools-mcp@1.12.0"
       ]
     }
   }

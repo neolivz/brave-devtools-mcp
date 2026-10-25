@@ -10,7 +10,7 @@ import path from 'node:path';
 import {describe, it} from 'node:test';
 
 const BUILD_SRC = path.resolve(import.meta.dirname, '..', 'src');
-const CLI_ENTRY = path.join(BUILD_SRC, 'bin', 'chrome-devtools.js');
+const CLI_ENTRY = path.join(BUILD_SRC, 'bin', 'brave-devtools.js');
 const FULL_BUNDLE = path.join(BUILD_SRC, 'third_party', 'index.js');
 
 const IMPORT_RE = /\b(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g;
@@ -49,7 +49,7 @@ function findImportPath(entry: string, target: string): string[] | undefined {
   return undefined;
 }
 
-describe('chrome-devtools CLI imports', () => {
+describe('brave-devtools CLI imports', () => {
   it('does not load the full third-party bundle', () => {
     const chain = findImportPath(CLI_ENTRY, FULL_BUNDLE);
     assert.strictEqual(

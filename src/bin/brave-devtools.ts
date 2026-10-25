@@ -39,10 +39,10 @@ import {getCliOptions} from '../config/mcp-options.js';
 
 import {ConfigParser} from '../config/ConfigParser.js';
 
-process.title = 'chrome-devtools';
+process.title = 'brave-devtools';
 
 await checkForUpdates(
-  'Run `npm install -g chrome-devtools-mcp@latest` and `chrome-devtools start` to update and restart the daemon.',
+  'Run `npm install -g brave-devtools-mcp@latest` and `brave-devtools start` to update and restart the daemon.',
 );
 
 const DEFAULT_CLI_ARGS = ['--viaCli'];
@@ -76,11 +76,11 @@ const {argv: cliArgs, restore: restoreLiteralArg} = shieldLiteralArgs(
 
 const y = yargs(cliArgs)
   .locale('en') // Force English to ensure error string matching works in .fail, all custom messages we output are in English anyways
-  .scriptName('chrome-devtools')
+  .scriptName('brave-devtools')
   .showHelpOnFail(true)
-  .usage('chrome-devtools <command> [...args] --flags')
+  .usage('brave-devtools <command> [...args] --flags')
   .usage(
-    `Run 'chrome-devtools <command> --help' for help on the specific command.`,
+    `Run 'brave-devtools <command> --help' for help on the specific command.`,
   )
   .option('sessionId', {
     type: 'string',
@@ -107,16 +107,16 @@ const y = yargs(cliArgs)
       ) {
         console.error('\n=========================================');
         console.error('💡 TIP FOR AI AGENT / DEVELOPER:');
-        console.error('In the `chrome-devtools` CLI:');
+        console.error('In the `brave-devtools` CLI:');
         console.error(
           '1. Required parameters MUST be passed as positional arguments (without flags).',
         );
         console.error(
-          '   - INCORRECT: chrome-devtools click --pageId 1 --uid "1_2"',
+          '   - INCORRECT: brave-devtools click --pageId 1 --uid "1_2"',
         );
-        console.error('   - CORRECT:   chrome-devtools click 1 "1_2"');
+        console.error('   - CORRECT:   brave-devtools click 1 "1_2"');
         console.error(
-          '   - CORRECT:   chrome-devtools evaluate_script "() => document.title" --pageId 1',
+          '   - CORRECT:   brave-devtools evaluate_script "() => document.title" --pageId 1',
         );
         console.error(
           '2. Optional parameters are passed as double-dash options/flags (e.g. --dblClick true), except optional positional parameters shown in command help.',
@@ -125,7 +125,7 @@ const y = yargs(cliArgs)
           '3. Make sure to escape quotes properly for your shell environment.',
         );
         console.error(
-          'Run `chrome-devtools <command> --help` to see exact positional and optional parameters.',
+          'Run `brave-devtools <command> --help` to see exact positional and optional parameters.',
         );
         console.error('=========================================');
       }
@@ -137,7 +137,7 @@ const y = yargs(cliArgs)
 
 y.command(
   'start',
-  'Start or restart chrome-devtools-mcp',
+  'Start or restart brave-devtools-mcp',
   y =>
     y
       .options(getCliOptions())
@@ -155,11 +155,11 @@ y.command(
 
 y.command(
   'status',
-  'Checks if chrome-devtools-mcp is running',
+  'Checks if brave-devtools-mcp is running',
   y => y,
   async argv => {
     if (isDaemonRunning(argv.sessionId)) {
-      console.log('chrome-devtools-mcp daemon is running.');
+      console.log('brave-devtools-mcp daemon is running.');
       const response = await sendCommand(
         {
           method: 'status',
@@ -174,7 +174,7 @@ y.command(
         console.log(`args=${JSON.stringify(data.args)}`);
         if (data.version !== VERSION) {
           console.warn(
-            `Warning: Daemon server version (${data.version}) does not match CLI version (${VERSION}). Run 'chrome-devtools start' to update and restart the daemon.`,
+            `Warning: Daemon server version (${data.version}) does not match CLI version (${VERSION}). Run 'brave-devtools start' to update and restart the daemon.`,
           );
         }
       } else {
@@ -182,7 +182,7 @@ y.command(
         process.exit(1);
       }
     } else {
-      console.log('chrome-devtools-mcp daemon is not running.');
+      console.log('brave-devtools-mcp daemon is not running.');
     }
     process.exit(0);
   },
@@ -190,7 +190,7 @@ y.command(
 
 y.command(
   'stop',
-  'Stop chrome-devtools-mcp if any',
+  'Stop brave-devtools-mcp if any',
   y => y,
   async argv => {
     const sessionId = argv.sessionId as string;

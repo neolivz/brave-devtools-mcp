@@ -141,7 +141,7 @@ export async function startDaemon(
   const child = spawn(process.execPath, [DAEMON_SCRIPT_PATH, ...mcpArgs], {
     detached: true,
     stdio: 'ignore',
-    env: {...process.env, CHROME_DEVTOOLS_MCP_SESSION_ID: sessionId},
+    env: {...process.env, BRAVE_DEVTOOLS_MCP_SESSION_ID: sessionId},
     cwd: process.cwd(),
     windowsHide: true,
   });
@@ -259,7 +259,7 @@ export async function verifyDaemonVersion(
     if (response.success) {
       const data: DaemonStatusResult = JSON.parse(response.result);
       if (data?.version && data.version !== cliVersion) {
-        return `Warning: Daemon server version (${data.version}) does not match CLI version (${cliVersion}). Run 'chrome-devtools start' to update and restart the daemon.`;
+        return `Warning: Daemon server version (${data.version}) does not match CLI version (${cliVersion}). Run 'brave-devtools start' to update and restart the daemon.`;
       }
     }
   } catch {

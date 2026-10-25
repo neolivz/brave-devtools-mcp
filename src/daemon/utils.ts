@@ -18,8 +18,8 @@ export const DAEMON_SCRIPT_PATH: string = path.join(
   'daemon.js',
 );
 
-const APP_NAME = 'chrome-devtools-mcp';
-export const DAEMON_CLIENT_NAME = 'chrome-devtools-cli-daemon';
+const APP_NAME = 'brave-devtools-mcp';
+export const DAEMON_CLIENT_NAME = 'brave-devtools-cli-daemon';
 
 export function assertValidSessionId(sessionId: string): void {
   if (!sessionId) {

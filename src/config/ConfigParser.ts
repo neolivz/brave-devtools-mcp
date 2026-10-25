@@ -58,7 +58,7 @@ export class ConfigParser {
   ): Argv<InferredOptionTypes<Record<string, YargsOptions>>> {
     const yargsInstance = yargs(hideBin(this.argv));
     return yargsInstance
-      .scriptName('npx chrome-devtools-mcp@latest')
+      .scriptName('npx brave-devtools-mcp@latest')
       .parserConfiguration({
         'strip-aliased': true,
         'strip-dashed': true,
