@@ -5,19 +5,19 @@
  */
 
 import assert from 'node:assert';
-import {beforeEach, describe, it} from 'node:test';
+import {describe, it} from 'node:test';
 
+import sinon from 'sinon';
+
+import {zod} from '../../src/third_party/index.js';
 import {emulate} from '../../src/tools/emulation.js';
 import {
   geolocationTransform,
   viewportTransform,
 } from '../../src/tools/ToolDefinition.js';
-import {serverHooks} from '../server.js';
-import {html, withMcpContext} from '../utils.js';
+import {createHandlerMocks} from '../mocks.js';
 
 describe('emulation', () => {
-  const server = serverHooks();
-
   describe('transforms', () => {
     describe('viewportTransform', () => {
       it('returns undefined for undefined input', () => {
@@ -67,6 +67,45 @@ describe('emulation', () => {
           isLandscape: true,
         });
       });
+
+      it('throws on non-numeric dimensions', () => {
+        assert.throws(() => viewportTransform('abc'));
+      });
+
+      it('throws when width is not positive', () => {
+        assert.throws(() => viewportTransform('0x600'));
+      });
+
+      it('throws when height is not positive', () => {
+        assert.throws(() => viewportTransform('800x0'));
+      });
+
+      it('throws when devicePixelRatio is not positive', () => {
+        assert.throws(() => viewportTransform('1024x768x0'));
+      });
+
+      it('throws when height is missing', () => {
+        assert.throws(() => viewportTransform('800'));
+      });
+
+      it('throws when viewport has unknown tags', () => {
+        assert.throws(() => viewportTransform('1280x720,mobile,bogus'));
+      });
+
+      it('throws when viewport has empty tags', () => {
+        assert.throws(() => viewportTransform('1280x720,'));
+      });
+
+      it('throws when viewport has extra dimension parts', () => {
+        assert.throws(() => viewportTransform('1280x720x2x9'));
+      });
+
+      it('throws when dimension parts are empty or contain whitespace', () => {
+        assert.throws(() => viewportTransform('800x'));
+        assert.throws(() => viewportTransform('x600'));
+        assert.throws(() => viewportTransform(' 1280 x 720'));
+        assert.throws(() => viewportTransform('1280x720, mobile'));
+      });
     });
 
     describe('geolocationTransform', () => {
@@ -75,609 +114,591 @@ describe('emulation', () => {
       });
 
       it('parses latitude and longitude', () => {
-        assert.deepStrictEqual(geolocationTransform('48.137154x11.576124'), {
+        assert.deepStrictEqual(geolocationTransform('48.137154,11.576124'), {
           latitude: 48.137154,
           longitude: 11.576124,
         });
+      });
+
+      it('throws when latitude is out of range', () => {
+        assert.throws(() => geolocationTransform('999,999'));
+      });
+
+      it('throws when longitude is out of range', () => {
+        assert.throws(() => geolocationTransform('48.1,999'));
+      });
+
+      it('throws on non-numeric input', () => {
+        assert.throws(() => geolocationTransform('abc,def'));
+      });
+
+      it('throws when longitude is missing', () => {
+        assert.throws(() => geolocationTransform('48.1'));
+      });
+
+      it('throws when geolocation has empty parts or trailing commas', () => {
+        assert.throws(() => geolocationTransform('37.77,'));
+        assert.throws(() => geolocationTransform(','));
+      });
+
+      it('throws when geolocation has extra parts', () => {
+        assert.throws(() => geolocationTransform('37.77,-122.42,9'));
+      });
+
+      it('throws on hex coordinates or surrounding whitespace', () => {
+        assert.throws(() => geolocationTransform('0x10,0x20'));
+        assert.throws(() => geolocationTransform(' 37.77 , -122.42 '));
       });
     });
   });
 
   describe('network', () => {
     it('emulates offline network conditions', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              networkConditions: 'Offline',
-            },
-            page: context.getSelectedMcpPage(),
-          },
-          response,
-          context,
-        );
-
-        assert.strictEqual(
-          context.getSelectedMcpPage().networkConditions,
-          'Offline',
-        );
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {params: {networkConditions: 'Offline'}, page},
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        networkConditions: 'Offline',
       });
+      sinon.assert.calledOnceWithExactly(
+        response.appendResponseLine,
+        'Emulation configured successfully',
+      );
     });
+
     it('emulates network throttling when the throttling option is valid', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              networkConditions: 'Slow 3G',
-            },
-            page: context.getSelectedMcpPage(),
-          },
-          response,
-          context,
-        );
-
-        assert.strictEqual(
-          context.getSelectedMcpPage().networkConditions,
-          'Slow 3G',
-        );
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {params: {networkConditions: 'Slow 3G'}, page},
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        networkConditions: 'Slow 3G',
       });
     });
 
-    it('disables network emulation', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {},
-            page: context.getSelectedMcpPage(),
-          },
-          response,
-          context,
-        );
-
-        assert.strictEqual(
-          context.getSelectedMcpPage().networkConditions,
-          null,
-        );
-      });
-    });
-
-    it('does not set throttling when the network throttling is not one of the predefined options', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              networkConditions: 'Slow 11G',
-            },
-            page: context.getSelectedMcpPage(),
-          },
-          response,
-          context,
-        );
-
-        assert.strictEqual(
-          context.getSelectedMcpPage().networkConditions,
-          null,
-        );
-      });
+    it('disables network emulation when networkConditions is omitted', async () => {
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler({params: {}, page}, response, context);
+      sinon.assert.calledOnceWithExactly(page.emulate, {});
     });
 
     it('report correctly for the currently selected page', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              networkConditions: 'Slow 3G',
-            },
-            page: context.getSelectedMcpPage(),
-          },
-          response,
-          context,
-        );
-
-        assert.strictEqual(
-          context.getSelectedMcpPage().networkConditions,
-          'Slow 3G',
-        );
-
-        const page = await context.newPage();
-        context.selectPage(page);
-
-        assert.strictEqual(
-          context.getSelectedMcpPage().networkConditions,
-          null,
-        );
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {params: {networkConditions: 'Slow 3G'}, page},
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        networkConditions: 'Slow 3G',
       });
     });
   });
 
   describe('cpu', () => {
     it('emulates cpu throttling when the rate is valid (1-20x)', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              cpuThrottlingRate: 4,
-            },
-            page: context.getSelectedMcpPage(),
-          },
-          response,
-          context,
-        );
-
-        assert.strictEqual(context.getSelectedMcpPage().cpuThrottlingRate, 4);
-      });
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {params: {cpuThrottlingRate: 4}, page},
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {cpuThrottlingRate: 4});
+      sinon.assert.calledOnceWithExactly(
+        response.appendResponseLine,
+        'Emulation configured successfully',
+      );
     });
 
-    it('disables cpu throttling', async () => {
-      await withMcpContext(async (response, context) => {
-        await context.emulate({
-          cpuThrottlingRate: 4,
-        });
-        await emulate.handler(
-          {
-            params: {
-              cpuThrottlingRate: 1,
-            },
-            page: context.getSelectedMcpPage(),
-          },
-          response,
-          context,
-        );
-
-        assert.strictEqual(context.getSelectedMcpPage().cpuThrottlingRate, 1);
-      });
+    it('disables cpu throttling when rate is 1', async () => {
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {params: {cpuThrottlingRate: 1}, page},
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {cpuThrottlingRate: 1});
     });
 
     it('report correctly for the currently selected page', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              cpuThrottlingRate: 4,
-            },
-            page: context.getSelectedMcpPage(),
-          },
-          response,
-          context,
-        );
-
-        assert.strictEqual(context.getSelectedMcpPage().cpuThrottlingRate, 4);
-
-        const page = await context.newPage();
-        context.selectPage(page);
-
-        assert.strictEqual(context.getSelectedMcpPage().cpuThrottlingRate, 1);
-      });
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {params: {cpuThrottlingRate: 4}, page},
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {cpuThrottlingRate: 4});
     });
   });
 
   describe('geolocation', () => {
     it('emulates geolocation with latitude and longitude', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              geolocation: {
-                latitude: 48.137154,
-                longitude: 11.576124,
-              },
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            geolocation: {
+              latitude: 48.137154,
+              longitude: 11.576124,
             },
-            page: context.getSelectedMcpPage(),
           },
-          response,
-          context,
-        );
-
-        const geolocation = context.getSelectedMcpPage().geolocation;
-        assert.strictEqual(geolocation?.latitude, 48.137154);
-        assert.strictEqual(geolocation?.longitude, 11.576124);
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        geolocation: {
+          latitude: 48.137154,
+          longitude: 11.576124,
+        },
       });
+      sinon.assert.calledOnceWithExactly(
+        response.appendResponseLine,
+        'Emulation configured successfully',
+      );
     });
 
-    it('clears geolocation override when geolocation is set to null', async () => {
-      await withMcpContext(async (response, context) => {
-        // First set a geolocation
-        await emulate.handler(
-          {
-            params: {
-              geolocation: {
-                latitude: 48.137154,
-                longitude: 11.576124,
-              },
-            },
-            page: context.getSelectedMcpPage(),
-          },
-          response,
-          context,
-        );
-
-        assert.notStrictEqual(context.getSelectedMcpPage().geolocation, null);
-
-        // Then clear it by setting geolocation to null
-        await emulate.handler(
-          {
-            params: {},
-            page: context.getSelectedMcpPage(),
-          },
-          response,
-          context,
-        );
-
-        assert.strictEqual(context.getSelectedMcpPage().geolocation, null);
-      });
+    it('clears geolocation override when geolocation is omitted', async () => {
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {},
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {});
     });
 
     it('reports correctly for the currently selected page', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              geolocation: {
-                latitude: 48.137154,
-                longitude: 11.576124,
-              },
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            geolocation: {
+              latitude: 48.137154,
+              longitude: 11.576124,
             },
-            page: context.getSelectedMcpPage(),
           },
-          response,
-          context,
-        );
-
-        const geolocation = context.getSelectedMcpPage().geolocation;
-        assert.strictEqual(geolocation?.latitude, 48.137154);
-        assert.strictEqual(geolocation?.longitude, 11.576124);
-
-        const page = await context.newPage();
-        context.selectPage(page);
-
-        assert.strictEqual(context.getSelectedMcpPage().geolocation, null);
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        geolocation: {
+          latitude: 48.137154,
+          longitude: 11.576124,
+        },
       });
     });
   });
+
   describe('viewport', () => {
-    beforeEach(() => {
-      server.addHtmlRoute('/viewport', html`Test page`);
-    });
-
     it('emulates viewport', async () => {
-      await withMcpContext(async (response, context) => {
-        const page = context.getSelectedPptrPage();
-        await page.goto(server.baseUrl + '/viewport');
-        await emulate.handler(
-          {
-            params: {
-              viewport: {
-                width: 400,
-                height: 400,
-                deviceScaleFactor: 2,
-                isMobile: true,
-                hasTouch: true,
-                isLandscape: false,
-              },
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            viewport: {
+              width: 400,
+              height: 400,
+              deviceScaleFactor: 2,
+              isMobile: true,
+              hasTouch: true,
+              isLandscape: false,
             },
-            page: context.getSelectedMcpPage(),
           },
-          response,
-          context,
-        );
-
-        const viewportData = await page.evaluate(() => {
-          return {
-            width: window.innerWidth,
-            height: window.innerHeight,
-            deviceScaleFactor: window.devicePixelRatio,
-            hasTouch: navigator.maxTouchPoints > 0,
-          };
-        });
-
-        assert.deepStrictEqual(viewportData, {
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        viewport: {
           width: 400,
           height: 400,
           deviceScaleFactor: 2,
+          isMobile: true,
           hasTouch: true,
-        });
+          isLandscape: false,
+        },
       });
+      sinon.assert.calledOnceWithExactly(
+        response.appendResponseLine,
+        'Emulation configured successfully',
+      );
     });
 
-    it('clears viewport override when viewport is set to null', async () => {
-      await withMcpContext(async (response, context) => {
-        const page = context.getSelectedPptrPage();
-        // First set a viewport
-        await emulate.handler(
-          {
-            params: {
-              viewport: {
-                width: 400,
-                height: 400,
-              },
-            },
-            page: context.getSelectedMcpPage(),
-          },
-          response,
-          context,
-        );
-
-        const viewportData = await page.evaluate(() => {
-          return {
-            width: window.innerWidth,
-            height: window.innerHeight,
-          };
-        });
-
-        assert.deepStrictEqual(viewportData, {
-          width: 400,
-          height: 400,
-        });
-
-        // Then clear it by setting viewport to null
-        await emulate.handler(
-          {
-            params: {},
-            page: context.getSelectedMcpPage(),
-          },
-          response,
-          context,
-        );
-
-        assert.strictEqual(context.getSelectedMcpPage().viewport, null);
-
-        // Somehow reset of the viewport seems to be async.
-        await context.getSelectedPptrPage().waitForFunction(() => {
-          return window.innerWidth !== 400 && window.innerHeight !== 400;
-        });
-      });
+    it('clears viewport override when viewport is omitted', async () => {
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {},
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {});
     });
 
     it('reports correctly for the currently selected page', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              viewport: {
-                width: 400,
-                height: 400,
-              },
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            viewport: {
+              width: 400,
+              height: 400,
             },
-            page: context.getSelectedMcpPage(),
           },
-          response,
-          context,
-        );
-
-        assert.ok(context.getSelectedMcpPage().viewport);
-
-        const page = await context.newPage();
-        context.selectPage(page);
-
-        assert.strictEqual(context.getSelectedMcpPage().viewport, null);
-        assert.ok(
-          await context.getSelectedPptrPage().evaluate(() => {
-            return window.innerWidth !== 400 && window.innerHeight !== 400;
-          }),
-        );
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        viewport: {
+          width: 400,
+          height: 400,
+        },
       });
     });
   });
 
   describe('userAgent', () => {
     it('emulates userAgent', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              userAgent: 'MyUA',
-            },
-            page: context.getSelectedMcpPage(),
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            userAgent: 'MyUA',
           },
-          response,
-          context,
-        );
-
-        assert.strictEqual(context.getSelectedMcpPage().userAgent, 'MyUA');
-        const page = context.getSelectedPptrPage();
-        const ua = await page.evaluate(() => navigator.userAgent);
-        assert.strictEqual(ua, 'MyUA');
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        userAgent: 'MyUA',
       });
+      sinon.assert.calledOnceWithExactly(
+        response.appendResponseLine,
+        'Emulation configured successfully',
+      );
     });
 
     it('updates userAgent', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              userAgent: 'UA1',
-            },
-            page: context.getSelectedMcpPage(),
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            userAgent: 'UA1',
           },
-          response,
-          context,
-        );
-        assert.strictEqual(context.getSelectedMcpPage().userAgent, 'UA1');
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        userAgent: 'UA1',
+      });
 
-        await emulate.handler(
-          {
-            params: {
-              userAgent: 'UA2',
-            },
-            page: context.getSelectedMcpPage(),
+      await emulate(args).handler(
+        {
+          params: {
+            userAgent: 'UA2',
           },
-          response,
-          context,
-        );
-        assert.strictEqual(context.getSelectedMcpPage().userAgent, 'UA2');
-        const page = context.getSelectedPptrPage();
-        const ua = await page.evaluate(() => navigator.userAgent);
-        assert.strictEqual(ua, 'UA2');
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledTwice(page.emulate);
+      sinon.assert.calledWithExactly(page.emulate.secondCall, {
+        userAgent: 'UA2',
       });
     });
 
-    it('clears userAgent override when userAgent is set to null', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              userAgent: 'MyUA',
-            },
-            page: context.getSelectedMcpPage(),
+    it('clears userAgent override when userAgent is omitted', async () => {
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {},
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {});
+    });
+
+    it('reports correctly for the currently selected page', async () => {
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            userAgent: 'MyUA',
           },
-          response,
-          context,
-        );
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        userAgent: 'MyUA',
+      });
+    });
+  });
 
-        assert.strictEqual(context.getSelectedMcpPage().userAgent, 'MyUA');
-
-        await emulate.handler(
-          {
-            params: {},
-            page: context.getSelectedMcpPage(),
+  describe('extraHttpHeaders', () => {
+    it('emulates extraHttpHeaders', async () => {
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            extraHttpHeaders: {'X-Custom-Header': 'test-value'},
           },
-          response,
-          context,
-        );
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        extraHttpHeaders: {'X-Custom-Header': 'test-value'},
+      });
+      sinon.assert.calledOnceWithExactly(
+        response.appendResponseLine,
+        'Emulation configured successfully',
+      );
+    });
 
-        assert.strictEqual(context.getSelectedMcpPage().userAgent, null);
-        const page = context.getSelectedPptrPage();
-        const ua = await page.evaluate(() => navigator.userAgent);
-        assert.notStrictEqual(ua, 'MyUA');
-        assert.ok(ua.length > 0);
+    it('clears extra headers when empty object is passed', async () => {
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            extraHttpHeaders: {},
+          },
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        extraHttpHeaders: {},
       });
     });
 
     it('reports correctly for the currently selected page', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              userAgent: 'MyUA',
-            },
-            page: context.getSelectedMcpPage(),
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            extraHttpHeaders: {'X-Page': 'one'},
           },
-          response,
-          context,
-        );
-
-        assert.strictEqual(context.getSelectedMcpPage().userAgent, 'MyUA');
-
-        const page = await context.newPage();
-        context.selectPage(page);
-
-        assert.strictEqual(context.getSelectedMcpPage().userAgent, null);
-        assert.ok(
-          await context.getSelectedPptrPage().evaluate(() => {
-            return navigator.userAgent !== 'MyUA';
-          }),
-        );
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        extraHttpHeaders: {'X-Page': 'one'},
       });
+    });
+
+    it('parses valid extraHttpHeaders JSON and empty string in schema', () => {
+      const {args} = createHandlerMocks();
+      const schema = zod.object(emulate(args).schema);
+      assert.deepStrictEqual(
+        schema.safeParse({
+          pageId: 1,
+          extraHttpHeaders: '{"X-Custom": "value"}',
+        }),
+        {
+          success: true,
+          data: {
+            pageId: 1,
+            extraHttpHeaders: {'X-Custom': 'value'},
+          },
+        },
+      );
+      assert.deepStrictEqual(
+        schema.safeParse({
+          pageId: 1,
+          extraHttpHeaders: '',
+        }),
+        {
+          success: true,
+          data: {
+            pageId: 1,
+            extraHttpHeaders: {},
+          },
+        },
+      );
+    });
+
+    it('reports validation issues instead of throwing for invalid transform inputs', () => {
+      const {args} = createHandlerMocks();
+      const schema = zod.object(emulate(args).schema);
+
+      const geoResult = schema.safeParse({pageId: 1, geolocation: '0x0'});
+      assert.strictEqual(geoResult.success, false);
+      assert.strictEqual(
+        geoResult.error.issues[0].message,
+        'Invalid geolocation "0x0". Expected \'<latitude>,<longitude>\'.',
+      );
+
+      const viewportResult = schema.safeParse({pageId: 1, viewport: '0x0'});
+      assert.strictEqual(viewportResult.success, false);
+      assert.strictEqual(
+        viewportResult.error.issues[0].message,
+        'Invalid viewport width "0". Expected format \'<width>x<height>x<devicePixelRatio>[,mobile][,touch][,landscape]\' with a positive width.',
+      );
+
+      const invalidJsonResult = schema.safeParse({
+        pageId: 1,
+        extraHttpHeaders: 'notjson',
+      });
+      assert.strictEqual(invalidJsonResult.success, false);
+      assert.match(
+        invalidJsonResult.error.issues[0].message,
+        /^Invalid JSON for headers:/,
+      );
+
+      const nonObjectHeadersResult = schema.safeParse({
+        pageId: 1,
+        extraHttpHeaders: '[]',
+      });
+      assert.strictEqual(nonObjectHeadersResult.success, false);
+      assert.strictEqual(
+        nonObjectHeadersResult.error.issues[0].message,
+        'Invalid JSON for headers: Headers must be a JSON object',
+      );
     });
   });
 
   describe('colorScheme', () => {
     it('emulates color scheme', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              colorScheme: 'dark',
-            },
-            page: context.getSelectedMcpPage(),
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            colorScheme: 'dark',
           },
-          response,
-          context,
-        );
-
-        assert.strictEqual(context.getSelectedMcpPage().colorScheme, 'dark');
-        const page = context.getSelectedPptrPage();
-        const scheme = await page.evaluate(() =>
-          window.matchMedia('(prefers-color-scheme: dark)').matches
-            ? 'dark'
-            : 'light',
-        );
-        assert.strictEqual(scheme, 'dark');
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        colorScheme: 'dark',
       });
+      sinon.assert.calledOnceWithExactly(
+        response.appendResponseLine,
+        'Emulation configured successfully',
+      );
     });
 
     it('updates color scheme', async () => {
-      await withMcpContext(async (response, context) => {
-        await emulate.handler(
-          {
-            params: {
-              colorScheme: 'dark',
-            },
-            page: context.getSelectedMcpPage(),
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            colorScheme: 'dark',
           },
-          response,
-          context,
-        );
-        assert.strictEqual(context.getSelectedMcpPage().colorScheme, 'dark');
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        colorScheme: 'dark',
+      });
 
-        await emulate.handler(
-          {
-            params: {
-              colorScheme: 'light',
-            },
-            page: context.getSelectedMcpPage(),
+      await emulate(args).handler(
+        {
+          params: {
+            colorScheme: 'light',
           },
-          response,
-          context,
-        );
-        assert.strictEqual(context.getSelectedMcpPage().colorScheme, 'light');
-        const page = context.getSelectedPptrPage();
-        const scheme = await page.evaluate(() =>
-          window.matchMedia('(prefers-color-scheme: light)').matches
-            ? 'light'
-            : 'dark',
-        );
-        assert.strictEqual(scheme, 'light');
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledTwice(page.emulate);
+      sinon.assert.calledWithExactly(page.emulate.secondCall, {
+        colorScheme: 'light',
       });
     });
 
     it('resets color scheme when set to auto', async () => {
-      await withMcpContext(async (response, context) => {
-        const page = context.getSelectedPptrPage();
-
-        const initial = await page.evaluate(
-          () => window.matchMedia('(prefers-color-scheme: dark)').matches,
-        );
-
-        await emulate.handler(
-          {
-            params: {
-              colorScheme: 'dark',
-            },
-            page: context.getSelectedMcpPage(),
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            colorScheme: 'auto',
           },
-          response,
-          context,
-        );
-        assert.strictEqual(context.getSelectedMcpPage().colorScheme, 'dark');
-        // Check manually that it is dark
-
-        assert.strictEqual(
-          await page.evaluate(
-            () => window.matchMedia('(prefers-color-scheme: dark)').matches,
-          ),
-          true,
-        );
-
-        await emulate.handler(
-          {
-            params: {
-              colorScheme: 'auto',
-            },
-            page: context.getSelectedMcpPage(),
-          },
-          response,
-          context,
-        );
-
-        assert.strictEqual(context.getSelectedMcpPage().colorScheme, null);
-        assert.strictEqual(
-          await page.evaluate(
-            () => window.matchMedia('(prefers-color-scheme: dark)').matches,
-          ),
-          initial,
-        );
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        colorScheme: 'auto',
       });
+    });
+  });
+
+  describe('media features', () => {
+    it('emulates forced-colors, prefers-contrast and prefers-reduced-motion', async () => {
+      const {page, context, response, args} = createHandlerMocks();
+      await emulate(args).handler(
+        {
+          params: {
+            forcedColors: 'active',
+            prefersContrast: 'more',
+            prefersReducedMotion: 'reduce',
+          },
+          page,
+        },
+        response,
+        context,
+      );
+      sinon.assert.calledOnceWithExactly(page.emulate, {
+        forcedColors: 'active',
+        prefersContrast: 'more',
+        prefersReducedMotion: 'reduce',
+      });
+      sinon.assert.calledOnceWithExactly(
+        response.appendResponseLine,
+        'Emulation configured successfully',
+      );
+    });
+
+    it('rejects unsupported values', () => {
+      const {args} = createHandlerMocks();
+      const schema = zod.object(emulate(args).schema);
+      assert.strictEqual(
+        schema.safeParse({forcedColors: 'inactive'}).success,
+        false,
+      );
+      assert.strictEqual(
+        schema.safeParse({prefersContrast: 'high'}).success,
+        false,
+      );
+      assert.strictEqual(
+        schema.safeParse({prefersReducedMotion: 'yes'}).success,
+        false,
+      );
     });
   });
 });

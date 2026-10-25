@@ -10,63 +10,133 @@ import 'core-js/proposals/iterator-helpers.js';
 
 import type {Flags, OutputMode, Result, RunnerResult} from 'lighthouse';
 import type {Page} from 'puppeteer-core';
+import {z as zod} from 'zod';
+
+import type * as LighthouseBundle from './lighthouse-devtools-mcp-bundle.js';
 
 export type {Flags, Result, RunnerResult, OutputMode};
 
-export type {Options as YargsOptions} from 'yargs';
-export {default as yargs} from 'yargs';
-export {hideBin} from 'yargs/helpers';
-export {default as debug} from 'debug';
-export type {Debugger} from 'debug';
-export {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
-export {type ShapeOutput} from '@modelcontextprotocol/sdk/server/zod-compat.js';
-export {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
-export {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
-export {Client} from '@modelcontextprotocol/sdk/client/index.js';
+export type {YargsOptions, InferredOptionTypes} from './cli.js';
+export {yargs, hideBin, semver, PipeTransport} from './cli.js';
+export {
+  McpServer,
+  ProtocolError,
+  ProtocolErrorCode,
+  type RegisteredTool,
+} from '@modelcontextprotocol/server';
+export {
+  StdioServerTransport,
+  serveStdio,
+} from '@modelcontextprotocol/server/stdio';
+export type {Transport} from '@modelcontextprotocol/server';
 export {
   type CallToolResult,
-  SetLevelRequestSchema,
   type ImageContent,
   type TextContent,
-} from '@modelcontextprotocol/sdk/types.js';
-export {z as zod} from 'zod';
+  type Tool,
+  type Root,
+} from '@modelcontextprotocol/server';
+export {
+  SetLevelRequestSchema,
+  ListRootsRequestSchema,
+  RootsListChangedNotificationSchema,
+  ListRootsResultSchema,
+} from '@modelcontextprotocol/core';
+export {zod};
+export type ShapeOutput<T extends zod.ZodRawShape> = zod.output<
+  zod.ZodObject<T>
+>;
+
 export {default as ajv} from 'ajv';
 export {
+  Accessibility,
+  ConsoleMessage,
+  Dialog,
+  ElementHandle,
+  Frame,
   Locator,
   PredefinedNetworkConditions,
   KnownDevices,
+  CDPSession,
   CDPSessionEvent,
+  Connection,
+  ScreenRecorder,
+  Target,
+  TargetType,
+  TimeoutError,
+  Tracing,
+  WebWorker,
+  WebMCP,
+  WebMCPTool,
 } from 'puppeteer-core';
 export {default as puppeteer} from 'puppeteer-core';
 export type * from 'puppeteer-core';
-export {PipeTransport} from 'puppeteer-core/internal/node/PipeTransport.js';
-export type {CdpPage} from 'puppeteer-core/internal/cdp/Page.js';
+export {CdpBrowser} from 'puppeteer-core/internal/cdp/Browser.js';
+export {CdpFrame} from 'puppeteer-core/internal/cdp/Frame.js';
+export {CdpPage} from 'puppeteer-core/internal/cdp/Page.js';
+export {CdpScreenRecording} from 'puppeteer-core/internal/cdp/ScreenRecording.js';
+export {CdpExtension} from 'puppeteer-core/internal/cdp/Extension.js';
+export {CdpMouse} from 'puppeteer-core/internal/cdp/Input.js';
+export type {CdpWebWorker} from 'puppeteer-core/internal/cdp/WebWorker.js';
+export type {Realm} from 'puppeteer-core/internal/api/Realm.js';
+export {FrameEvent} from 'puppeteer-core/internal/api/Frame.js';
 export type {JSONSchema7, JSONSchema7Definition} from 'json-schema';
+export {Mutex} from 'puppeteer-core/internal/util/Mutex.js';
+export {Deferred} from 'puppeteer-core/internal/util/Deferred.js';
+export {
+  DisposableStack,
+  AsyncDisposableStack,
+  SuppressedError,
+} from 'puppeteer-core/internal/util/disposable.js';
 export {
   resolveDefaultUserDataDir,
   detectBrowserPlatform,
   Browser as BrowserEnum,
   type ChromeReleaseChannel as BrowsersChromeReleaseChannel,
 } from '@puppeteer/browsers';
+export async function getToonEncode(): Promise<(val: unknown) => string> {
+  const {encode} = await import('@toon-format/toon');
+  return encode;
+}
+export async function getGcfEncode(): Promise<(val: unknown) => string> {
+  const {encodeGeneric} = await import('@blackwell-systems/gcf');
+  return encodeGeneric;
+}
 
-import {
-  snapshot as snapshotImpl,
-  navigation as navigationImpl,
-  generateReport as generateReportImpl,
-} from './lighthouse-devtools-mcp-bundle.js';
+let lighthouseBundle: Promise<typeof LighthouseBundle> | undefined;
 
-export const snapshot = snapshotImpl as (
+/**
+ * Loads the Lighthouse bundle on first use. The bundle is large and only the
+ * Lighthouse tool uses it, so a static import slows down every process start.
+ */
+function loadLighthouse(): Promise<typeof LighthouseBundle> {
+  lighthouseBundle ??= import('./lighthouse-devtools-mcp-bundle.js');
+  return lighthouseBundle;
+}
+
+export async function lighthouseSnapshot(
   page: Page,
   options: {flags?: Flags},
-) => Promise<RunnerResult>;
-export const navigation = navigationImpl as (
+): Promise<RunnerResult | undefined> {
+  const {snapshot} = await loadLighthouse();
+  return await snapshot(page, options);
+}
+
+export async function lighthouseNavigation(
   page: Page,
   url: string,
   options: {flags?: Flags},
-) => Promise<RunnerResult>;
-export const generateReport = generateReportImpl as (
-  lhr: Result,
-  format: string,
-) => string;
+): Promise<RunnerResult | undefined> {
+  const {navigation} = await loadLighthouse();
+  return await navigation(page, url, options);
+}
 
-export * as DevTools from '../../node_modules/chrome-devtools-frontend/mcp/mcp.js';
+export async function generateReport(
+  lhr: Result,
+  format: OutputMode,
+): Promise<string> {
+  const lighthouse = await loadLighthouse();
+  return lighthouse.generateReport(lhr, format);
+}
+
+export * as DevTools from '../../third_party/devtools-frontend/mcp/mcp.js';

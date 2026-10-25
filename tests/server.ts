@@ -17,7 +17,7 @@ export class TestServer {
   #port: number;
   #server: Server;
 
-  static randomPort() {
+  static randomPort(): number {
     /**
      * Some ports are restricted by Chromium and will fail to connect
      * to prevent we start after the
@@ -38,17 +38,17 @@ export class TestServer {
   }
 
   get baseUrl(): string {
-    return `http://localhost:${this.#port}`;
+    return `http://127.0.0.1:${this.#port}`;
   }
 
-  getRoute(path: string) {
+  getRoute(path: string): string {
     if (!this.#routes[path]) {
       throw new Error(`Route ${path} was not setup.`);
     }
     return `${this.baseUrl}${path}`;
   }
 
-  addHtmlRoute(path: string, htmlContent: string) {
+  addHtmlRoute(path: string, htmlContent: string): void {
     if (this.#routes[path]) {
       throw new Error(`Route ${path} was already setup.`);
     }
@@ -62,7 +62,7 @@ export class TestServer {
   addRoute(
     path: string,
     handler: (req: IncomingMessage, res: ServerResponse) => void,
-  ) {
+  ): void {
     if (this.#routes[path]) {
       throw new Error(`Route ${path} was already setup.`);
     }
@@ -83,18 +83,41 @@ export class TestServer {
     }
   }
 
-  restore() {
+  reset(): void {
     this.#routes = {};
   }
 
-  start(): Promise<void> {
-    return new Promise(res => {
-      this.#server.listen(this.#port, res);
-    });
+  async start(): Promise<void> {
+    let retries = 5;
+    while (retries > 0) {
+      try {
+        await new Promise<void>((res, rej) => {
+          this.#server.once('error', rej);
+          this.#server.listen(this.#port, () => {
+            this.#server.off('error', rej);
+            res();
+          });
+        });
+        return;
+      } catch (err) {
+        if (
+          err instanceof Error &&
+          'code' in err &&
+          err.code === 'EADDRINUSE'
+        ) {
+          retries--;
+          this.#port = TestServer.randomPort();
+        } else {
+          throw err;
+        }
+      }
+    }
+    throw new Error('Failed to bind to a port after 5 retries');
   }
 
   stop(): Promise<void> {
     return new Promise((res, rej) => {
+      this.#server.closeAllConnections();
       this.#server.close(err => {
         if (err) {
           rej(err);
@@ -106,7 +129,7 @@ export class TestServer {
   }
 }
 
-export function serverHooks() {
+export function serverHooks(): TestServer {
   const server = new TestServer(TestServer.randomPort());
   before(async () => {
     await server.start();
@@ -115,7 +138,7 @@ export function serverHooks() {
     await server.stop();
   });
   afterEach(() => {
-    server.restore();
+    server.reset();
   });
 
   return server;

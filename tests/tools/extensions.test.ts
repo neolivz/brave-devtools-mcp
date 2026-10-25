@@ -5,12 +5,10 @@
  */
 
 import assert from 'node:assert';
-import path from 'node:path';
-import {afterEach, describe, it} from 'node:test';
+import {describe, it} from 'node:test';
 
 import sinon from 'sinon';
 
-import type {ParsedArguments} from '../../src/bin/brave-devtools-mcp-cli-options.js';
 import {
   installExtension,
   uninstallExtension,
@@ -18,142 +16,127 @@ import {
   reloadExtension,
   triggerExtensionAction,
 } from '../../src/tools/extensions.js';
-import {extractExtensionId, withMcpContext} from '../utils.js';
+import {createHandlerMocks, createMockExtension} from '../mocks.js';
 
-const EXTENSION_WITH_SW_PATH = path.join(
-  import.meta.dirname,
-  '../../../tests/tools/fixtures/extension-sw',
-);
-const EXTENSION_PATH = path.join(
-  import.meta.dirname,
-  '../../../tests/tools/fixtures/extension',
-);
+describe('extensions', () => {
+  describe('install_extension', () => {
+    it('installs an extension and appends response line', async () => {
+      const {context, response, args} = createHandlerMocks();
+      context.installExtension.resolves('ext-123');
 
-describe('extension', () => {
-  afterEach(() => {
-    sinon.restore();
-  });
-
-  it('installs and uninstalls an extension and verifies it in chrome://extensions', async () => {
-    await withMcpContext(async (response, context) => {
-      // Install the extension
-      await installExtension.handler(
-        {params: {path: EXTENSION_PATH}},
+      await installExtension(args).handler(
+        {params: {path: '/path/to/extension'}},
         response,
         context,
       );
 
-      const extensionId = extractExtensionId(response);
-      const page = context.getSelectedPptrPage();
-      await page.goto('chrome://extensions');
-
-      const element = await page.waitForSelector(
-        `extensions-manager >>> extensions-item[id="${extensionId}"]`,
+      sinon.assert.calledOnceWithExactly(
+        context.installExtension,
+        '/path/to/extension',
       );
-      assert.ok(
-        element,
-        `Extension with ID "${extensionId}" should be visible on chrome://extensions`,
-      );
-
-      // Uninstall the extension
-      await uninstallExtension.handler(
-        {params: {id: extensionId!}},
-        response,
-        context,
-      );
-
-      const uninstallResponseLine = response.responseLines[1];
-      assert.ok(
-        uninstallResponseLine.includes('Extension uninstalled'),
-        'Response should indicate uninstallation',
-      );
-
-      await page.waitForSelector('extensions-manager');
-
-      const elementAfterUninstall = await page.$(
-        `extensions-manager >>> extensions-item[id="${extensionId}"]`,
-      );
-      assert.strictEqual(
-        elementAfterUninstall,
-        null,
-        `Extension with ID "${extensionId}" should NOT be visible on chrome://extensions`,
+      sinon.assert.calledOnceWithExactly(
+        response.appendResponseLine,
+        'Extension installed. Id: ext-123',
       );
     });
   });
-  it('lists installed extensions', async () => {
-    await withMcpContext(async (response, context) => {
-      const setListExtensionsSpy = sinon.spy(response, 'setListExtensions');
-      await listExtensions.handler({params: {}}, response, context);
-      assert.ok(
-        setListExtensionsSpy.calledOnce,
-        'setListExtensions should be called',
-      );
-    });
-  });
-  it('reloads an extension', async () => {
-    await withMcpContext(async (response, context) => {
-      await installExtension.handler(
-        {params: {path: EXTENSION_PATH}},
+
+  describe('uninstall_extension', () => {
+    it('uninstalls an extension and appends response line', async () => {
+      const {context, response, args} = createHandlerMocks();
+      context.uninstallExtension.resolves();
+
+      await uninstallExtension(args).handler(
+        {params: {id: 'ext-123'}},
         response,
         context,
       );
 
-      const extensionId = extractExtensionId(response);
-      const installSpy = sinon.spy(context, 'installExtension');
-      response.resetResponseLineForTesting();
+      sinon.assert.calledOnceWithExactly(context.uninstallExtension, 'ext-123');
+      sinon.assert.calledOnceWithExactly(
+        response.appendResponseLine,
+        'Extension uninstalled. Id: ext-123',
+      );
+    });
+  });
 
-      await reloadExtension.handler(
-        {params: {id: extensionId!}},
+  describe('list_extensions', () => {
+    it('sets list extensions on response', async () => {
+      const {context, response, args} = createHandlerMocks();
+
+      await listExtensions(args).handler({params: {}}, response, context);
+
+      sinon.assert.calledOnceWithExactly(response.setListExtensions);
+    });
+  });
+
+  describe('reload_extension', () => {
+    it('reloads an extension by reinstalling its path', async () => {
+      const {context, response, args} = createHandlerMocks();
+      const mockExtension = createMockExtension({
+        id: 'ext-123',
+        path: '/path/to/extension',
+      });
+      context.getExtension.resolves(mockExtension);
+      context.installExtension.resolves('ext-123');
+
+      await reloadExtension(args).handler(
+        {params: {id: 'ext-123'}},
         response,
         context,
       );
-      assert.ok(
-        installSpy.calledOnceWithExactly(EXTENSION_PATH),
-        'installExtension should be called with the extension path',
+
+      sinon.assert.calledOnceWithExactly(context.getExtension, 'ext-123');
+      sinon.assert.calledOnceWithExactly(
+        context.installExtension,
+        '/path/to/extension',
+      );
+      sinon.assert.calledOnceWithExactly(
+        response.appendResponseLine,
+        'Extension reloaded.',
+      );
+    });
+
+    it('throws when extension is not found', async () => {
+      const {context, response, args} = createHandlerMocks();
+      context.getExtension.resolves(undefined);
+
+      await assert.rejects(
+        async () => {
+          await reloadExtension(args).handler(
+            {params: {id: 'non-existent'}},
+            response,
+            context,
+          );
+        },
+        {message: 'Extension with ID non-existent not found.'},
       );
 
-      const reloadResponseLine = response.responseLines[0];
-      assert.ok(
-        reloadResponseLine.includes('Extension reloaded'),
-        'Response should indicate reload',
-      );
-
-      const list = context.listExtensions();
-      assert.ok(list.length === 1, 'List should have only one extension');
-      const reinstalled = list.find(e => e.id === extensionId);
-      assert.ok(reinstalled, 'Extension should be present after reload');
+      sinon.assert.calledOnceWithExactly(context.getExtension, 'non-existent');
+      sinon.assert.notCalled(context.installExtension);
+      sinon.assert.notCalled(response.appendResponseLine);
     });
   });
-  it('triggers an extension action', async () => {
-    await withMcpContext(
-      async (response, context) => {
-        const extensionId = await context.installExtension(
-          EXTENSION_WITH_SW_PATH,
-        );
 
-        const targetsBefore = context.browser.targets();
-        const pageTargetBefore = targetsBefore.find(
-          t => t.type() === 'page' && t.url().includes(extensionId),
-        );
-        assert.ok(!pageTargetBefore, 'Page should not exist before action');
+  describe('trigger_extension_action', () => {
+    it('triggers extension action and appends response line', async () => {
+      const {context, response, args} = createHandlerMocks();
+      context.triggerExtensionAction.resolves();
 
-        await triggerExtensionAction.handler(
-          {params: {id: extensionId}},
-          response,
-          context,
-        );
+      await triggerExtensionAction(args).handler(
+        {params: {id: 'ext-123'}},
+        response,
+        context,
+      );
 
-        const pageTargetAfter = await context.browser.waitForTarget(
-          t => t.type() === 'page' && t.url().includes(extensionId),
-        );
-        assert.ok(pageTargetAfter, 'Page should exist after action');
-      },
-      {
-        executablePath: process.env.CHROME_M146_EXECUTABLE_PATH,
-      },
-      {
-        categoryExtensions: true,
-      } as ParsedArguments,
-    );
+      sinon.assert.calledOnceWithExactly(
+        context.triggerExtensionAction,
+        'ext-123',
+      );
+      sinon.assert.calledOnceWithExactly(
+        response.appendResponseLine,
+        'Extension action triggered for ID ext-123',
+      );
+    });
   });
 });

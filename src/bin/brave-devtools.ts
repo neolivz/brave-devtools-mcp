@@ -6,8 +6,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-process.title = 'brave-devtools';
-
 import process from 'node:process';
 
 import type {Options, PositionalOptions} from 'yargs';
@@ -17,159 +15,202 @@ import {
   stopDaemon,
   sendCommand,
   handleResponse,
+  verifyDaemonVersion,
 } from '../daemon/client.js';
-import {isDaemonRunning, serializeArgs} from '../daemon/utils.js';
-import {logDisclaimers} from '../index.js';
-import {hideBin, yargs, type CallToolResult} from '../third_party/index.js';
+import type {DaemonStatusResult} from '../daemon/types.js';
+import {
+  isDaemonRunning,
+  serializeArgs,
+  assertValidSessionId,
+} from '../daemon/utils.js';
+import {logDisclaimers} from '../utils/disclaimers.js';
+import {hideBin, yargs} from '../third_party/cli.js';
+import type {CallToolResult} from '../third_party/index.js';
 import {checkForUpdates} from '../utils/check-for-updates.js';
 import {VERSION} from '../version.js';
 
-import {commands} from './brave-devtools-cli-options.js';
-import {cliOptions, parseArguments} from './brave-devtools-mcp-cli-options.js';
+import {
+  buildCommand,
+  getCommandArgSpec,
+  shieldLiteralArgs,
+} from '../config/cli-commands.js';
+import {commands} from '../config/cli-options.js';
+import {getCliOptions} from '../config/mcp-options.js';
+
+import {ConfigParser} from '../config/ConfigParser.js';
+
+process.title = 'brave-devtools';
 
 await checkForUpdates(
   'Run `npm install -g brave-devtools-mcp@latest` and `brave-devtools start` to update and restart the daemon.',
 );
 
-async function start(args: string[]) {
-  const combinedArgs = [...args, ...defaultArgs];
-  await startDaemon(combinedArgs);
-  logDisclaimers(parseArguments(VERSION, combinedArgs));
+const DEFAULT_CLI_ARGS = ['--viaCli'];
+
+async function start(
+  args: string[],
+  sessionId: string,
+  stopExisting = false,
+): Promise<void> {
+  const combinedArgs = [...DEFAULT_CLI_ARGS, ...args];
+  // Validates the arguments and the config file before starting the daemon.
+  const parsedArgs = new ConfigParser(VERSION, [
+    process.execPath,
+    process.argv[1],
+    ...combinedArgs,
+  ]).parse();
+  if (stopExisting && isDaemonRunning(sessionId)) {
+    await stopDaemon(sessionId);
+  }
+  await startDaemon(combinedArgs, sessionId);
+  logDisclaimers(parsedArgs);
 }
 
-const defaultArgs = ['--viaCli', '--experimentalStructuredContent'];
+const {argv: cliArgs, restore: restoreLiteralArg} = shieldLiteralArgs(
+  hideBin(process.argv),
+  commandName => {
+    const commandDef = commands[commandName];
+    return commandDef ? getCommandArgSpec(commandDef.args) : undefined;
+  },
+);
 
-const startCliOptions = {
-  ...cliOptions,
-} as Partial<typeof cliOptions>;
-
-// Not supported in CLI on purpose.
-delete startCliOptions.autoConnect;
-// Missing CLI serialization.
-delete startCliOptions.viewport;
-// CLI is generated based on the default tool definitions. To enable conditional
-// tools, they need to be enabled during CLI generation.
-delete startCliOptions.experimentalPageIdRouting;
-delete startCliOptions.experimentalVision;
-delete startCliOptions.experimentalInteropTools;
-delete startCliOptions.experimentalScreencast;
-delete startCliOptions.categoryEmulation;
-delete startCliOptions.categoryPerformance;
-delete startCliOptions.categoryNetwork;
-delete startCliOptions.categoryExtensions;
-// Always on in CLI.
-delete startCliOptions.experimentalStructuredContent;
-// Change the defaults.
-if (!('default' in cliOptions.headless)) {
-  throw new Error('headless cli option unexpectedly does not have a default');
-}
-if ('default' in cliOptions.isolated) {
-  throw new Error('isolated cli option unexpectedly has a default');
-}
-startCliOptions.headless!.default = true;
-startCliOptions.isolated!.description =
-  'If specified, creates a temporary user-data-dir that is automatically cleaned up after the browser is closed. Defaults to true unless userDataDir is provided.';
-
-const y = yargs(hideBin(process.argv))
+const y = yargs(cliArgs)
+  .locale('en') // Force English to ensure error string matching works in .fail, all custom messages we output are in English anyways
   .scriptName('brave-devtools')
   .showHelpOnFail(true)
   .usage('brave-devtools <command> [...args] --flags')
   .usage(
     `Run 'brave-devtools <command> --help' for help on the specific command.`,
   )
+  .option('sessionId', {
+    type: 'string',
+    description: 'Session ID for daemon scoping',
+    default: process.env.CD4A_INTERNAL_DAEMON_SESSION_ID || '',
+    hidden: true,
+    coerce: (sessionId: string) => {
+      assertValidSessionId(sessionId);
+      return sessionId;
+    },
+  })
   .demandCommand()
   .version(VERSION)
   .strict()
   .help(true)
-  .wrap(120);
+  .wrap(120)
+  .fail((msg, err) => {
+    if (msg) {
+      console.error('Error:', msg);
+      if (
+        msg.includes('Not enough non-option arguments') ||
+        msg.includes('Unknown argument') ||
+        msg.includes('Unknown arguments')
+      ) {
+        console.error('\n=========================================');
+        console.error('💡 TIP FOR AI AGENT / DEVELOPER:');
+        console.error('In the `brave-devtools` CLI:');
+        console.error(
+          '1. Required parameters MUST be passed as positional arguments (without flags).',
+        );
+        console.error(
+          '   - INCORRECT: brave-devtools click --pageId 1 --uid "1_2"',
+        );
+        console.error('   - CORRECT:   brave-devtools click 1 "1_2"');
+        console.error(
+          '   - CORRECT:   brave-devtools evaluate_script "() => document.title" --pageId 1',
+        );
+        console.error(
+          '2. Optional parameters are passed as double-dash options/flags (e.g. --dblClick true), except optional positional parameters shown in command help.',
+        );
+        console.error(
+          '3. Make sure to escape quotes properly for your shell environment.',
+        );
+        console.error(
+          'Run `brave-devtools <command> --help` to see exact positional and optional parameters.',
+        );
+        console.error('=========================================');
+      }
+    } else if (err) {
+      console.error(err);
+    }
+    process.exit(1);
+  });
 
 y.command(
   'start',
   'Start or restart brave-devtools-mcp',
   y =>
     y
-      .options(startCliOptions)
+      .options(getCliOptions())
       .example(
         '$0 start --browserUrl http://localhost:9222',
         'Start the server connecting to an existing browser',
       )
       .strict(),
   async argv => {
-    if (isDaemonRunning()) {
-      await stopDaemon();
-    }
-    // Defaults but we do not want to affect the yargs conflict resolution.
-    if (argv.isolated === undefined && argv.userDataDir === undefined) {
-      argv.isolated = true;
-    }
-    if (argv.headless === undefined) {
-      argv.headless = true;
-    }
-    const args = serializeArgs(cliOptions, argv);
-    await start(args);
+    const args = serializeArgs(getCliOptions(), argv);
+    await start(args, argv.sessionId, /* stopExisting= */ true);
     process.exit(0);
   },
 ).strict(); // Re-enable strict validation for other commands; this is applied to the yargs instance itself
 
-y.command('status', 'Checks if brave-devtools-mcp is running', async () => {
-  if (isDaemonRunning()) {
-    console.log('brave-devtools-mcp daemon is running.');
-    const response = await sendCommand({
-      method: 'status',
-    });
-    if (response.success) {
-      const data = JSON.parse(response.result) as {
-        pid: number | null;
-        socketPath: string;
-        startDate: string;
-        version: string;
-        args: string[];
-      };
-      console.log(
-        `pid=${data.pid} socket=${data.socketPath} start-date=${data.startDate} version=${data.version}`,
+y.command(
+  'status',
+  'Checks if brave-devtools-mcp is running',
+  y => y,
+  async argv => {
+    if (isDaemonRunning(argv.sessionId)) {
+      console.log('brave-devtools-mcp daemon is running.');
+      const response = await sendCommand(
+        {
+          method: 'status',
+        },
+        argv.sessionId,
       );
-      console.log(`args=${JSON.stringify(data.args)}`);
+      if (response.success) {
+        const data: DaemonStatusResult = JSON.parse(response.result);
+        console.log(
+          `pid=${data.pid} socket=${data.socketPath} start-date=${data.startDate} version=${data.version}`,
+        );
+        console.log(`args=${JSON.stringify(data.args)}`);
+        if (data.version !== VERSION) {
+          console.warn(
+            `Warning: Daemon server version (${data.version}) does not match CLI version (${VERSION}). Run 'brave-devtools start' to update and restart the daemon.`,
+          );
+        }
+      } else {
+        console.error('Error:', response.error);
+        process.exit(1);
+      }
     } else {
-      console.error('Error:', response.error);
-      process.exit(1);
+      console.log('brave-devtools-mcp daemon is not running.');
     }
-  } else {
-    console.log('brave-devtools-mcp daemon is not running.');
-  }
-  process.exit(0);
-});
-
-y.command('stop', 'Stop brave-devtools-mcp if any', async () => {
-  if (!isDaemonRunning()) {
     process.exit(0);
-  }
-  await stopDaemon();
-  process.exit(0);
-});
+  },
+);
+
+y.command(
+  'stop',
+  'Stop brave-devtools-mcp if any',
+  y => y,
+  async argv => {
+    const sessionId = argv.sessionId as string;
+    if (!isDaemonRunning(sessionId)) {
+      process.exit(0);
+    }
+    await stopDaemon(sessionId);
+    process.exit(0);
+  },
+);
 
 for (const [commandName, commandDef] of Object.entries(commands)) {
   const args = commandDef.args;
-  const requiredArgNames = Object.keys(args).filter(
-    name => args[name].required,
-  );
-
-  const optionalArgNames = Object.keys(args).filter(
-    name => !args[name].required,
-  );
-
-  let commandStr = commandName;
-  for (const arg of requiredArgNames) {
-    commandStr += ` <${arg}>`;
-  }
-
-  for (const arg of optionalArgNames) {
-    commandStr += ` [--${arg}]`;
-  }
+  const {command, usage} = buildCommand(commandName, args);
 
   y.command(
-    commandStr,
+    command,
     commandDef.description,
     y => {
+      y.usage(usage);
       y.option('output-format', {
         choices: ['md', 'json'],
         default: 'md',
@@ -184,7 +225,7 @@ for (const [commandName, commandDef] of Object.entries(commands)) {
                 ? 'array'
                 : 'string';
 
-        if (opt.required) {
+        if (opt.positional) {
           const options: PositionalOptions = {
             describe: opt.description,
             type: type as PositionalOptions['type'],
@@ -202,7 +243,9 @@ for (const [commandName, commandDef] of Object.entries(commands)) {
             type: type as Options['type'],
           };
           if (opt.default !== undefined) {
-            options.default = opt.default;
+            // Document the default in --help without populating argv, so the
+            // daemon applies its current tool schema and config defaults.
+            options.defaultDescription = JSON.stringify(opt.default);
           }
           if (opt.enum) {
             options.choices = opt.enum as Array<string | number>;
@@ -212,23 +255,32 @@ for (const [commandName, commandDef] of Object.entries(commands)) {
       }
     },
     async argv => {
+      const sessionId = argv.sessionId as string;
       try {
-        if (!isDaemonRunning()) {
-          await start([]);
+        const daemonRunning = isDaemonRunning(sessionId);
+        const versionWarningPromise = daemonRunning
+          ? verifyDaemonVersion(sessionId, VERSION)
+          : Promise.resolve(undefined);
+
+        if (!daemonRunning) {
+          await start([], sessionId);
         }
 
         const commandArgs: Record<string, unknown> = {};
         for (const argName of Object.keys(args)) {
           if (argName in argv) {
-            commandArgs[argName] = argv[argName];
+            commandArgs[argName] = restoreLiteralArg(argv[argName]);
           }
         }
 
-        const response = await sendCommand({
-          method: 'invoke_tool',
-          tool: commandName,
-          args: commandArgs,
-        });
+        const response = await sendCommand(
+          {
+            method: 'invoke_tool',
+            tool: commandName,
+            args: commandArgs,
+          },
+          sessionId,
+        );
 
         if (response.success) {
           console.log(
@@ -239,6 +291,14 @@ for (const [commandName, commandDef] of Object.entries(commands)) {
           );
         } else {
           console.error('Error:', response.error);
+        }
+
+        const versionWarning = await versionWarningPromise;
+        if (versionWarning) {
+          console.warn(versionWarning);
+        }
+
+        if (!response.success) {
           process.exit(1);
         }
       } catch (error) {

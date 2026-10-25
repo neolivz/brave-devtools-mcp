@@ -1,0 +1,494 @@
+[
+  {
+    "name": "browser_url_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "headless",
+    "flagType": "boolean"
+  },
+  {
+    "name": "executable_path_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "isolated",
+    "flagType": "boolean"
+  },
+  {
+    "name": "channel",
+    "flagType": "enum",
+    "choices": [
+      "CHANNEL_UNSPECIFIED",
+      "CHANNEL_CANARY",
+      "CHANNEL_DEV",
+      "CHANNEL_BETA",
+      "CHANNEL_STABLE"
+    ]
+  },
+  {
+    "name": "log_file_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "accept_insecure_certs_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "accept_insecure_certs",
+    "flagType": "boolean"
+  },
+  {
+    "name": "auto_connect_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "auto_connect",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_emulation_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_emulation",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_extensions_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_extensions",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_network_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_network",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_performance_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_performance",
+    "flagType": "boolean"
+  },
+  {
+    "name": "channel_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "chrome_arg_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_devtools_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_devtools",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_include_all_pages_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_include_all_pages",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_interop_tools_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_interop_tools",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_structured_content_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_structured_content",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_vision_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_vision",
+    "flagType": "boolean"
+  },
+  {
+    "name": "headless_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "ignore_default_chrome_arg_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "isolated_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "proxy_server_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "usage_statistics_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "usage_statistics",
+    "flagType": "boolean"
+  },
+  {
+    "name": "user_data_dir_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "viewport_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "ws_endpoint_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "ws_headers_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "performance_crux_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "performance_crux",
+    "flagType": "boolean"
+  },
+  {
+    "name": "slim_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "slim",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_screencast_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_screencast",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_in_page_tools",
+    "flagType": "boolean",
+    "isDeprecated": true
+  },
+  {
+    "name": "category_in_page_tools_present",
+    "flagType": "boolean",
+    "isDeprecated": true
+  },
+  {
+    "name": "clearcut_endpoint_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "clearcut_force_flush_interval_ms_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "clearcut_include_pid_header",
+    "flagType": "boolean"
+  },
+  {
+    "name": "clearcut_include_pid_header_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_ffmpeg_path_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_memory",
+    "flagType": "boolean",
+    "isDeprecated": true
+  },
+  {
+    "name": "experimental_memory_present",
+    "flagType": "boolean",
+    "isDeprecated": true
+  },
+  {
+    "name": "experimental_navigation_allowlist",
+    "flagType": "boolean",
+    "isDeprecated": true
+  },
+  {
+    "name": "experimental_navigation_allowlist_present",
+    "flagType": "boolean",
+    "isDeprecated": true
+  },
+  {
+    "name": "experimental_page_id_routing",
+    "flagType": "boolean",
+    "isDeprecated": true
+  },
+  {
+    "name": "experimental_page_id_routing_present",
+    "flagType": "boolean",
+    "isDeprecated": true
+  },
+  {
+    "name": "experimental_webmcp",
+    "flagType": "boolean",
+    "isDeprecated": true
+  },
+  {
+    "name": "experimental_webmcp_present",
+    "flagType": "boolean",
+    "isDeprecated": true
+  },
+  {
+    "name": "redact_network_headers",
+    "flagType": "boolean"
+  },
+  {
+    "name": "redact_network_headers_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "via_cli",
+    "flagType": "boolean"
+  },
+  {
+    "name": "via_cli_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_experimental_in_page_present",
+    "flagType": "boolean",
+    "isDeprecated": true
+  },
+  {
+    "name": "category_experimental_in_page",
+    "flagType": "boolean",
+    "isDeprecated": true
+  },
+  {
+    "name": "category_experimental_webmcp_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_experimental_webmcp",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_experimental_third_party_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_experimental_third_party",
+    "flagType": "boolean"
+  },
+  {
+    "name": "memory_debugging_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "memory_debugging",
+    "flagType": "boolean"
+  },
+  {
+    "name": "blocked_url_pattern_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "allowed_url_pattern_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_toon_format_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_toon_format",
+    "flagType": "boolean"
+  },
+  {
+    "name": "screenshot_format_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "screenshot_format",
+    "flagType": "enum",
+    "choices": [
+      "SCREENSHOT_FORMAT_UNSPECIFIED",
+      "SCREENSHOT_FORMAT_JPEG",
+      "SCREENSHOT_FORMAT_PNG",
+      "SCREENSHOT_FORMAT_WEBP"
+    ]
+  },
+  {
+    "name": "screenshot_quality_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "screenshot_max_width_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "screenshot_max_height_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_data_format_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_data_format",
+    "flagType": "enum",
+    "choices": [
+      "EXPERIMENTAL_DATA_FORMAT_UNSPECIFIED",
+      "EXPERIMENTAL_DATA_FORMAT_DEFAULT",
+      "EXPERIMENTAL_DATA_FORMAT_TOON",
+      "EXPERIMENTAL_DATA_FORMAT_GCF"
+    ]
+  },
+  {
+    "name": "allow_unrestricted_paths_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "allow_unrestricted_paths",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_pwa_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_pwa",
+    "flagType": "boolean"
+  },
+  {
+    "name": "page_id_routing_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "page_id_routing",
+    "flagType": "boolean"
+  },
+  {
+    "name": "javascript_evaluation_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "javascript_evaluation",
+    "flagType": "boolean"
+  },
+  {
+    "name": "experimental_screencast_fps_present",
+    "flagType": "boolean",
+    "isDeprecated": true
+  },
+  {
+    "name": "filesystem_root_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_input_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_input",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_navigation_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_navigation",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_debugging_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_debugging",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_memory_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_memory",
+    "flagType": "boolean"
+  },
+  {
+    "name": "source_maps_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "source_maps",
+    "flagType": "boolean"
+  },
+  {
+    "name": "config_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "devtools_comments_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "devtools_comments",
+    "flagType": "boolean"
+  },
+  {
+    "name": "file_navigations_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "file_navigations",
+    "flagType": "boolean"
+  },
+  {
+    "name": "screencast_fps_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "watch_config_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "watch_config",
+    "flagType": "boolean"
+  },
+  {
+    "name": "max_navigation_saved_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_webauthn_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "category_webauthn",
+    "flagType": "boolean"
+  }
+]

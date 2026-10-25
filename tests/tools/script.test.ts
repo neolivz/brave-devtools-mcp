@@ -5,14 +5,28 @@
  */
 
 import assert from 'node:assert';
+import {readFile} from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import {describe, it} from 'node:test';
+import {pathToFileURL} from 'node:url';
 
-import type {ParsedArguments} from '../../src/bin/brave-devtools-mcp-cli-options.js';
+import sinon from 'sinon';
+
+import {TextSnapshot} from '../../src/TextSnapshot.js';
+import {zod} from '../../src/third_party/index.js';
 import {installExtension} from '../../src/tools/extensions.js';
 import {evaluateScript} from '../../src/tools/script.js';
+import {WaitForHelper} from '../../src/utils/WaitForHelper.js';
+import {createHandlerMocks, createMockParsedArguments} from '../mocks.js';
 import {serverHooks} from '../server.js';
-import {extractExtensionId, html, withMcpContext} from '../utils.js';
+import {
+  assertNoServiceWorkerReported,
+  createTempDir,
+  extractExtensionId,
+  html,
+  withMcpContext,
+} from '../utils.js';
 
 const EXTENSION_PATH = path.join(
   import.meta.dirname,
@@ -24,8 +38,8 @@ describe('script', () => {
 
   describe('browser_evaluate_script', () => {
     it('evaluates', async () => {
-      await withMcpContext(async (response, context) => {
-        await evaluateScript().handler(
+      await withMcpContext(async (response, context, args) => {
+        await evaluateScript(args).handler(
           {
             params: {function: String(() => 2 * 5)},
           },
@@ -36,9 +50,263 @@ describe('script', () => {
         assert.strictEqual(JSON.parse(lineEvaluation), 10);
       });
     });
+    it('evaluates an inline classic script', async () => {
+      await withMcpContext(async (response, context, args) => {
+        await evaluateScript(args).handler(
+          {
+            params: {
+              function: 'document.title = "Script title"; document.title',
+              format: 'script',
+            },
+          },
+          response,
+          context,
+        );
+        const lineEvaluation = response.responseLines.at(2);
+        assert.ok(lineEvaluation);
+        assert.strictEqual(JSON.parse(lineEvaluation), 'Script title');
+      });
+    });
+    it('evaluates a function ending with a single-line comment', async () => {
+      await withMcpContext(async (response, context, args) => {
+        await evaluateScript(args).handler(
+          {
+            params: {
+              function: '() => document.title // get title',
+            },
+          },
+          response,
+          context,
+        );
+        const lineEvaluation = response.responseLines.at(2);
+        assert.ok(lineEvaluation);
+        assert.strictEqual(JSON.parse(lineEvaluation), '');
+      });
+    });
+    it('evaluates a function ending with a semicolon', async () => {
+      await withMcpContext(async (response, context, args) => {
+        await evaluateScript(args).handler(
+          {
+            params: {
+              function: '() => document.title;',
+            },
+          },
+          response,
+          context,
+        );
+        const lineEvaluation = response.responseLines.at(2);
+        assert.ok(lineEvaluation);
+        assert.strictEqual(JSON.parse(lineEvaluation), '');
+      });
+    });
+    it('does not execute multi-statement source in function mode', async () => {
+      await withMcpContext(async (response, context, args) => {
+        await assert.rejects(
+          evaluateScript(args).handler(
+            {
+              params: {
+                function: '() => document.title; document.title = "unexpected"',
+              },
+            },
+            response,
+            context,
+          ),
+        );
+        assert.strictEqual(
+          await context.getSelectedMcpPage().pptrPage.title(),
+          '',
+        );
+      });
+    });
+    it('surfaces non-Error values when script throws or rejects', async () => {
+      await withMcpContext(async (response, context, args) => {
+        const cases = [
+          {fn: "() => { throw 'str-thrown'; }", expected: 'str-thrown'},
+          {fn: "async () => { throw 'async-str'; }", expected: 'async-str'},
+          {fn: '() => Promise.reject(42)', expected: '42'},
+          {fn: '() => { throw {code: 42}; }', expected: '{"code":42}'},
+          {
+            fn: "() => { throw new Error('err-thrown'); }",
+            expected: 'err-thrown',
+          },
+        ];
+        for (const testCase of cases) {
+          let caught: unknown;
+          try {
+            await evaluateScript(args).handler(
+              {params: {function: testCase.fn}},
+              response,
+              context,
+            );
+          } catch (err) {
+            caught = err;
+          }
+          assert.ok(
+            caught instanceof Error,
+            `Expected Error for ${testCase.fn}`,
+          );
+          assert.ok(
+            caught.message.includes(testCase.expected),
+            `Expected "${caught.message}" to include "${testCase.expected}"`,
+          );
+        }
+      });
+    });
+    it('serializes script results inside the browser', async () => {
+      await withMcpContext(async (response, context, args) => {
+        await evaluateScript(args).handler(
+          {
+            params: {
+              function: 'new URL("https://example.com/path")',
+              format: 'script',
+            },
+          },
+          response,
+          context,
+        );
+        const lineEvaluation = response.responseLines.at(2);
+        assert.ok(lineEvaluation);
+        assert.strictEqual(
+          JSON.parse(lineEvaluation),
+          'https://example.com/path',
+        );
+      });
+    });
+    it('loads function source from a local file', async () => {
+      const {page, response, context, args} = createHandlerMocks();
+      const sourcePath = path.join(os.tmpdir(), 'function.js');
+      context.loadResource.resolves('() => document.title;');
+
+      await evaluateScript(args).handler(
+        {params: {sourcePath}},
+        response,
+        context,
+      );
+
+      sinon.assert.calledOnceWithExactly(
+        context.loadResource,
+        pathToFileURL(sourcePath).href,
+      );
+      sinon.assert.calledOnce(page.waitForEventsAfterAction);
+    });
+    it('loads classic script source from a file URL', async () => {
+      const {page, response, context, args} = createHandlerMocks();
+      const sourcePath = pathToFileURL(
+        path.join(os.tmpdir(), 'script.js'),
+      ).href;
+      context.loadResource.resolves(
+        'document.body.dataset.source = "file"; document.body.dataset.source',
+      );
+
+      await evaluateScript(args).handler(
+        {params: {sourcePath, format: 'script'}},
+        response,
+        context,
+      );
+
+      sinon.assert.calledOnceWithExactly(context.loadResource, sourcePath);
+      sinon.assert.calledOnce(page.waitForEventsAfterAction);
+    });
+    it('requires exactly one script source', async () => {
+      const {response, context, args} = createHandlerMocks();
+      await assert.rejects(
+        evaluateScript(args).handler({params: {}}, response, context),
+        /Specify exactly one of function or sourcePath/,
+      );
+      await assert.rejects(
+        evaluateScript(args).handler(
+          {
+            params: {
+              function: '() => true',
+              sourcePath: 'script.js',
+            },
+          },
+          response,
+          context,
+        ),
+        /Specify exactly one of function or sourcePath/,
+      );
+    });
+    it('rejects args for classic scripts', async () => {
+      const {response, context, args} = createHandlerMocks();
+      await assert.rejects(
+        evaluateScript(args).handler(
+          {
+            params: {
+              function: 'document.title',
+              format: 'script',
+              args: ['1_1'],
+            },
+          },
+          response,
+          context,
+        ),
+        /args cannot be used when format is "script"/,
+      );
+    });
+    it('reports unreadable source files', async () => {
+      const {response, context, args} = createHandlerMocks();
+      const sourcePath = path.join(
+        os.tmpdir(),
+        'missing-evaluate-script-source.js',
+      );
+      context.loadResource.rejects(new Error('File not found'));
+      await assert.rejects(
+        evaluateScript(args).handler({params: {sourcePath}}, response, context),
+        /Unable to read script source.*File not found/,
+      );
+      sinon.assert.calledOnceWithExactly(
+        context.loadResource,
+        pathToFileURL(sourcePath).href,
+      );
+    });
+    it('throws without evaluating if a dialog is already open', async () => {
+      const {page, response, context, args} = createHandlerMocks();
+      page.throwIfDialogOpen.throws(
+        new Error('A dialog is open (alert: hello).'),
+      );
+      await assert.rejects(
+        evaluateScript(args).handler(
+          {params: {function: '() => 1'}},
+          response,
+          context,
+        ),
+        {message: 'A dialog is open (alert: hello).'},
+      );
+      sinon.assert.calledOnceWithExactly(page.init, {emulateFocus: true});
+      sinon.assert.calledOnceWithExactly(page.throwIfDialogOpen);
+      sinon.assert.callOrder(page.init, page.throwIfDialogOpen);
+      sinon.assert.notCalled(page.waitForEventsAfterAction);
+    });
+    it('skips the stable DOM wait when waitForStableDom is false', async () => {
+      await withMcpContext(async (response, context, args) => {
+        const spy = sinon.spy(WaitForHelper.prototype, 'waitForStableDom');
+        try {
+          await evaluateScript(args).handler(
+            {
+              params: {function: String(() => 1), waitForStableDom: false},
+            },
+            response,
+            context,
+          );
+          sinon.assert.notCalled(spy);
+
+          await evaluateScript(args).handler(
+            {
+              params: {function: String(() => 1)},
+            },
+            response,
+            context,
+          );
+          sinon.assert.calledOnce(spy);
+        } finally {
+          spy.restore();
+        }
+      });
+    });
     it('runs in selected page', async () => {
-      await withMcpContext(async (response, context) => {
-        await evaluateScript().handler(
+      await withMcpContext(async (response, context, args) => {
+        await evaluateScript(args).handler(
           {
             params: {function: String(() => document.title)},
           },
@@ -57,7 +325,7 @@ describe('script', () => {
         `);
 
         response.resetResponseLineForTesting();
-        await evaluateScript().handler(
+        await evaluateScript(args).handler(
           {
             params: {function: String(() => document.title)},
           },
@@ -71,12 +339,12 @@ describe('script', () => {
     });
 
     it('work for complex objects', async () => {
-      await withMcpContext(async (response, context) => {
-        const page = context.getSelectedPptrPage();
+      await withMcpContext(async (response, context, args) => {
+        const page = context.getSelectedMcpPage().pptrPage;
 
         await page.setContent(html`<script src="./scripts.js"></script> `);
 
-        await evaluateScript().handler(
+        await evaluateScript(args).handler(
           {
             params: {
               function: String(() => {
@@ -98,13 +366,82 @@ describe('script', () => {
       });
     });
 
+    it('work for scripts that trigger dialogs', async () => {
+      await withMcpContext(async (response, context, args) => {
+        const page = context.getSelectedMcpPage().pptrPage;
+
+        await page.setContent(html`<button id="test">test</button>`);
+
+        await evaluateScript(args).handler(
+          {
+            params: {
+              function: String(() => {
+                alert('hello');
+                return 'Works';
+              }),
+            },
+          },
+          response,
+          context,
+        );
+        const lineEvaluation = response.responseLines.at(2)!;
+        assert.strictEqual(JSON.parse(lineEvaluation), 'Works');
+      });
+    });
+
+    it('work for scripts that trigger dialogs and dismiss them', async () => {
+      await withMcpContext(async (response, context, args) => {
+        const page = context.getSelectedMcpPage().pptrPage;
+
+        await page.setContent(html`<button id="test">test</button>`);
+
+        await evaluateScript(args).handler(
+          {
+            params: {
+              function: String(() => {
+                return confirm('hello');
+              }),
+              dialogAction: 'dismiss',
+            },
+          },
+          response,
+          context,
+        );
+        const lineEvaluation = response.responseLines.at(2)!;
+        assert.strictEqual(JSON.parse(lineEvaluation), false);
+      });
+    });
+
+    it('work for scripts that trigger prompts and fill them', async () => {
+      await withMcpContext(async (response, context, args) => {
+        const page = context.getSelectedMcpPage().pptrPage;
+
+        await page.setContent(html`<button id="test">test</button>`);
+
+        await evaluateScript(args).handler(
+          {
+            params: {
+              function: String(() => {
+                return prompt('Enter your name:');
+              }),
+              dialogAction: 'John Doe',
+            },
+          },
+          response,
+          context,
+        );
+        const lineEvaluation = response.responseLines.at(2)!;
+        assert.strictEqual(JSON.parse(lineEvaluation), 'John Doe');
+      });
+    });
+
     it('work for async functions', async () => {
-      await withMcpContext(async (response, context) => {
-        const page = context.getSelectedPptrPage();
+      await withMcpContext(async (response, context, args) => {
+        const page = context.getSelectedMcpPage().pptrPage;
 
         await page.setContent(html`<script src="./scripts.js"></script> `);
 
-        await evaluateScript().handler(
+        await evaluateScript(args).handler(
           {
             params: {
               function: String(async () => {
@@ -122,14 +459,16 @@ describe('script', () => {
     });
 
     it('work with one argument', async () => {
-      await withMcpContext(async (response, context) => {
-        const page = context.getSelectedPptrPage();
+      await withMcpContext(async (response, context, args) => {
+        const page = context.getSelectedMcpPage().pptrPage;
 
         await page.setContent(html`<button id="test">test</button>`);
 
-        await context.createTextSnapshot(context.getSelectedMcpPage());
+        context.getSelectedMcpPage().textSnapshot = await TextSnapshot.create(
+          context.getSelectedMcpPage(),
+        );
 
-        await evaluateScript().handler(
+        await evaluateScript(args).handler(
           {
             params: {
               function: String(async (el: Element) => {
@@ -147,14 +486,16 @@ describe('script', () => {
     });
 
     it('work with multiple args', async () => {
-      await withMcpContext(async (response, context) => {
-        const page = context.getSelectedPptrPage();
+      await withMcpContext(async (response, context, args) => {
+        const page = context.getSelectedMcpPage().pptrPage;
 
         await page.setContent(html`<button id="test">test</button>`);
 
-        await context.createTextSnapshot(context.getSelectedMcpPage());
+        context.getSelectedMcpPage().textSnapshot = await TextSnapshot.create(
+          context.getSelectedMcpPage(),
+        );
 
-        await evaluateScript().handler(
+        await evaluateScript(args).handler(
           {
             params: {
               function: String((container: Element, child: Element) => {
@@ -178,11 +519,13 @@ describe('script', () => {
       );
       server.addHtmlRoute('/main', html`<iframe src="/iframe"></iframe>`);
 
-      await withMcpContext(async (response, context) => {
-        const page = context.getSelectedPptrPage();
+      await withMcpContext(async (response, context, args) => {
+        const page = context.getSelectedMcpPage().pptrPage;
         await page.goto(server.getRoute('/main'));
-        await context.createTextSnapshot(context.getSelectedMcpPage());
-        await evaluateScript().handler(
+        context.getSelectedMcpPage().textSnapshot = await TextSnapshot.create(
+          context.getSelectedMcpPage(),
+        );
+        await evaluateScript(args).handler(
           {
             params: {
               function: String((element: Element) => {
@@ -198,10 +541,36 @@ describe('script', () => {
         assert.strictEqual(JSON.parse(lineEvaluation), 'I am iframe button');
       });
     });
+    it('saves output to file when filePath is provided', async () => {
+      using tmpDir = createTempDir();
+      const filePath = path.join(
+        tmpDir.path,
+        'test-evaluate-script-output.json',
+      );
+      await withMcpContext(async (response, context, args) => {
+        await evaluateScript(args).handler(
+          {
+            params: {
+              function: String(() => ({hello: 'world'})),
+              filePath,
+            },
+          },
+          response,
+          context,
+        );
+        assert.strictEqual(response.responseLines.length, 1);
+        assert.ok(
+          response.responseLines[0]?.includes('Output saved to'),
+          `Expected "Output saved to" but got: ${response.responseLines[0]}`,
+        );
+      });
+      const content = await readFile(filePath, 'utf-8');
+      assert.deepStrictEqual(JSON.parse(content), {hello: 'world'});
+    });
     it('evaluates inside extension service worker', async () => {
       await withMcpContext(
-        async (response, context) => {
-          await installExtension.handler(
+        async (response, context, args) => {
+          await installExtension(args).handler(
             {params: {path: EXTENSION_PATH}},
             response,
             context,
@@ -212,20 +581,21 @@ describe('script', () => {
             t => t.type() === 'service_worker' && t.url().includes(extensionId),
           );
 
-          await context.createExtensionServiceWorkersSnapshot();
-          const swList = context.getExtensionServiceWorkers();
+          context.createWorkersSnapshot();
+          const swList = context.getWorkers();
           const sw = swList.find(s => s.target === swTarget);
 
           if (!sw) {
             assert.fail('Service worker not found in context list');
           }
 
-          const swId = context.getExtensionServiceWorkerId(sw);
+          const swId = sw.id;
+
+          await context.triggerExtensionAction(extensionId);
 
           response.resetResponseLineForTesting();
-          await evaluateScript({
-            categoryExtensions: true,
-          } as ParsedArguments).handler(
+          const extensionEvaluateScript = evaluateScript(args);
+          await extensionEvaluateScript.handler(
             {
               params: {
                 function: String(() => {
@@ -240,65 +610,157 @@ describe('script', () => {
 
           const lineEvaluation = response.responseLines.at(2)!;
           assert.strictEqual(JSON.parse(lineEvaluation), 'has-chrome');
+
+          response.resetResponseLineForTesting();
+          await extensionEvaluateScript.handler(
+            {
+              params: {
+                function:
+                  '"chrome" in globalThis ? "has-chrome-script" : "no-chrome"',
+                format: 'script',
+                serviceWorkerId: swId,
+              },
+            },
+            response,
+            context,
+          );
+          const scriptEvaluation = response.responseLines.at(2);
+          assert.ok(scriptEvaluation);
+          assert.strictEqual(JSON.parse(scriptEvaluation), 'has-chrome-script');
+
+          await context.uninstallExtension(extensionId);
+          const targets = context.browser.targets();
+          assertNoServiceWorkerReported(targets, extensionId);
         },
         {},
-        {categoryExtensions: true} as ParsedArguments,
+        {categoryExtensions: true},
       );
     });
 
     it('throws error when both pageId and serviceWorkerId are provided', async () => {
-      await withMcpContext(
-        async (response, context) => {
-          await assert.rejects(
-            evaluateScript({
-              categoryExtensions: true,
-            } as ParsedArguments).handler(
-              {
-                params: {
-                  function: String(() => 'test'),
-                  serviceWorkerId: 'example_service_worker',
-                  pageId: '1',
-                },
-              },
-              response,
-              context,
-            ),
-            {
-              message: 'specify either a pageId or a serviceWorkerId.',
+      const {page, context, response} = createHandlerMocks();
+      await assert.rejects(
+        evaluateScript(
+          createMockParsedArguments({
+            categoryExtensions: true,
+          }),
+        ).handler(
+          {
+            params: {
+              function: String(() => 'test'),
+              serviceWorkerId: 'example_service_worker',
+              pageId: 1,
             },
-          );
+          },
+          response,
+          context,
+        ),
+        {
+          message: 'specify either a pageId or a serviceWorkerId.',
         },
-        {},
-        {categoryExtensions: true} as ParsedArguments,
       );
+      sinon.assert.notCalled(context.getWorkers);
+      sinon.assert.notCalled(context.getSelectedMcpPage);
+      sinon.assert.notCalled(context.getPageById);
+      sinon.assert.notCalled(page.waitForEventsAfterAction);
+      sinon.assert.notCalled(response.appendResponseLine);
     });
 
     it('throws error when args are provided with serviceWorkerId', async () => {
-      await withMcpContext(
-        async (response, context) => {
-          await assert.rejects(
-            evaluateScript({
-              categoryExtensions: true,
-            } as ParsedArguments).handler(
-              {
-                params: {
-                  function: String(() => 'test'),
-                  serviceWorkerId: 'example_service_worker',
-                  args: ['1_1'],
-                },
-              },
-              response,
-              context,
-            ),
-            {
-              message:
-                'args (element uids) cannot be used when evaluating in a service worker.',
+      const {page, context, response} = createHandlerMocks();
+      await assert.rejects(
+        evaluateScript(
+          createMockParsedArguments({
+            categoryExtensions: true,
+          }),
+        ).handler(
+          {
+            params: {
+              function: String(() => 'test'),
+              serviceWorkerId: 'example_service_worker',
+              args: ['1_1'],
             },
-          );
+          },
+          response,
+          context,
+        ),
+        {
+          message:
+            'args (element uids) cannot be used when evaluating in a service worker.',
         },
-        {},
-        {categoryExtensions: true} as ParsedArguments,
       );
+      sinon.assert.notCalled(context.getWorkers);
+      sinon.assert.notCalled(context.getSelectedMcpPage);
+      sinon.assert.notCalled(context.getPageById);
+      sinon.assert.notCalled(page.getElementByUid);
+      sinon.assert.notCalled(page.waitForEventsAfterAction);
+      sinon.assert.notCalled(response.appendResponseLine);
+    });
+
+    it('throws error when pageId and serviceWorkerId are omitted with pageIdRouting', async () => {
+      const {page, context, response} = createHandlerMocks();
+      await assert.rejects(
+        evaluateScript(
+          createMockParsedArguments({
+            categoryExtensions: true,
+            pageIdRouting: true,
+          }),
+        ).handler(
+          {
+            params: {
+              function: String(() => 'test'),
+            },
+          },
+          response,
+          context,
+        ),
+        {
+          message: 'specify either a pageId or a serviceWorkerId.',
+        },
+      );
+      sinon.assert.notCalled(context.getWorkers);
+      sinon.assert.notCalled(context.getSelectedMcpPage);
+      sinon.assert.notCalled(context.getPageById);
+      sinon.assert.notCalled(page.waitForEventsAfterAction);
+      sinon.assert.notCalled(response.appendResponseLine);
+    });
+
+    it('makes pageId optional in schema when categoryExtensions is true and pageIdRouting is true', () => {
+      const args = createMockParsedArguments({
+        categoryExtensions: true,
+        pageIdRouting: true,
+      });
+      const tool = evaluateScript(args);
+      const schema = zod.object(tool.schema);
+      const validSw = schema.safeParse({
+        function: '() => 1',
+        serviceWorkerId: 'sw_1',
+      });
+      assert.strictEqual(validSw.success, true);
+
+      const validPage = schema.safeParse({
+        function: '() => 1',
+        pageId: 1,
+      });
+      assert.strictEqual(validPage.success, true);
+    });
+
+    it('makes pageId required in schema when categoryExtensions is false and pageIdRouting is true', () => {
+      const args = createMockParsedArguments({
+        pageIdRouting: true,
+      });
+      const tool = evaluateScript(args);
+      const schema = zod.object(tool.schema);
+      const resultWithoutPageId = schema.safeParse({
+        function: '() => 1',
+      });
+      assert.strictEqual(resultWithoutPageId.success, false);
+
+      const resultWithPageId = schema.safeParse({
+        function: '() => 1',
+        pageId: 1,
+      });
+      assert.strictEqual(resultWithPageId.success, true);
     });
   });
 });

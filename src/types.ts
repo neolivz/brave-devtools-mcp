@@ -4,13 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {SerializedAXNode, Viewport, Target} from './third_party/index.js';
-
-export interface ExtensionServiceWorker {
-  url: string;
-  target: Target;
-  id: string;
-}
+import type {
+  SerializedAXNode,
+  Viewport,
+  DevTools,
+} from './third_party/index.js';
 
 export interface TextSnapshotNode extends SerializedAXNode {
   id: string;
@@ -24,16 +22,23 @@ export interface GeolocationOptions {
   longitude: number;
 }
 
-export interface TextSnapshot {
-  root: TextSnapshotNode;
-  idToNode: Map<string, TextSnapshotNode>;
-  snapshotId: string;
-  selectedElementUid?: string;
-  // It might happen that there is a selected element, but it is not part of the
-  // snapshot. This flag indicates if there is any selected element.
-  hasSelectedElement: boolean;
-  verbose: boolean;
-}
+export const FORCED_COLORS_VALUES = ['active', 'none'] as const;
+export type ForcedColors = (typeof FORCED_COLORS_VALUES)[number];
+
+export const PREFERS_CONTRAST_VALUES = [
+  'more',
+  'less',
+  'custom',
+  'no-preference',
+] as const;
+export type PrefersContrast = (typeof PREFERS_CONTRAST_VALUES)[number];
+
+export const PREFERS_REDUCED_MOTION_VALUES = [
+  'reduce',
+  'no-preference',
+] as const;
+export type PrefersReducedMotion =
+  (typeof PREFERS_REDUCED_MOTION_VALUES)[number];
 
 export interface EmulationSettings {
   networkConditions?: string;
@@ -41,5 +46,52 @@ export interface EmulationSettings {
   geolocation?: GeolocationOptions;
   userAgent?: string;
   colorScheme?: 'dark' | 'light';
+  forcedColors?: ForcedColors;
+  prefersContrast?: PrefersContrast;
+  prefersReducedMotion?: PrefersReducedMotion;
   viewport?: Viewport;
+  extraHttpHeaders?: Record<string, string>;
+}
+
+export type Logger = ((...args: unknown[]) => void) | undefined;
+
+export interface PaginationOptions {
+  pageSize?: number;
+  pageIdx?: number;
+}
+
+export type CD4ACommentThread = DevTools.CD4ABridge.CommentThread;
+export type CD4ARevealTarget = DevTools.CD4ABridge.RevealTarget;
+
+export enum CD4ABridgeEvents {
+  COMMENT_THREADS_CHANGED = 'CommentThreadsChanged',
+}
+
+/**
+ * Functions evaluated in the DevTools page cannot reference `CD4ABridgeEvents`
+ * at runtime, so they pass the string value instead.
+ */
+export type CD4ABridgeEventName = `${CD4ABridgeEvents}`;
+
+export type CD4ABridge = Omit<
+  DevTools.CD4ABridge.CD4ABridge,
+  'addEventListener' | 'removeEventListener'
+> & {
+  addEventListener(event: CD4ABridgeEventName, listener: () => void): void;
+  removeEventListener(event: CD4ABridgeEventName, listener: () => void): void;
+};
+
+export type CommentThread = CD4ACommentThread;
+export type RevealTarget = CD4ARevealTarget;
+
+declare global {
+  interface Window {
+    universe?: {
+      cd4aBridge?: CD4ABridge | null;
+    };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    __onDevToolsCommentEvent?: () => void;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    __onDevToolsCommentListener?: () => void;
+  }
 }

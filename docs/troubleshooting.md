@@ -14,7 +14,7 @@
 
 Start the MCP server with debugging enabled and a log file:
 
-- `DEBUG=* npx chrome-devtools-mcp@latest --log-file=/path/to/chrome-devtools-mcp.log`
+- `NODE_DEBUG=* npx chrome-devtools-mcp@latest --log-file=/path/to/chrome-devtools-mcp.log`
 
 Using `.mcp.json` to debug while using a client:
 
@@ -30,7 +30,7 @@ Using `.mcp.json` to debug while using a client:
         "/path/to/chrome-devtools-mcp.log"
       ],
       "env": {
-        "DEBUG": "*"
+        "NODE_DEBUG": "*"
       }
     }
   }
@@ -62,6 +62,12 @@ On macOS, Chrome launched by an MCP client application (such as Claude Desktop) 
 
 To resolve this, grant Bluetooth permission to the MCP client application in `System Settings > Privacy & Security > Bluetooth`. After granting permission, restart the client application and start a new MCP session.
 
+### `--autoConnect` fails with `Could not find DevToolsActivePort` or `EPERM: operation not permitted` on macOS
+
+On recent macOS versions, macOS blocks other applications from reading browser profile folders under `~/Library/Application Support/Google/Chrome` without showing a permission prompt (TCC `kTCCServiceSystemPolicyAppDataDetailed`). Because the MCP server inherits the permissions of the terminal or IDE host application that launched it, reading `DevToolsActivePort` fails with `EPERM: operation not permitted`.
+
+To resolve this, grant the terminal or MCP client host application access to **Google Chrome** in `System Settings > Privacy & Security > Files & Folders`. The change applies immediately without restarting the terminal or MCP client.
+
 ### Remote debugging between virtual machine (VM) and host fails
 
 When attempting to connect to Chrome running on a host machine from within a virtual machine (VM), Chrome may reject the connection due to 'Host' header validation. You can bypass this restriction by creating an SSH tunnel from the VM to the host. In the VM, run:
@@ -80,6 +86,19 @@ Chrome that requires permissions to create its own sandboxes. As a workaround,
 either disable sandboxing for `chrome-devtools-mcp` in your MCP client or use
 `--browser-url` to connect to a Chrome instance that you start manually outside
 of the MCP client sandbox.
+
+### Running as root
+
+Chrome does not start as root
+([crbug.com/638180](https://crbug.com/638180)). It exits immediately and
+`chrome-devtools-mcp` reports that Chrome failed to start. This is a common
+issue in containers and CI images that run everything as root.
+
+Run `chrome-devtools-mcp` as a non-root user. In a container, create an
+unprivileged user in the image and switch to it with `USER`; the build itself
+can still run as root. For the host-side setup that Chrome's sandbox needs, see
+Puppeteer's
+[Setting up Chrome Linux sandbox](https://pptr.dev/troubleshooting#setting-up-chrome-linux-sandbox).
 
 ### WSL
 
@@ -175,3 +194,9 @@ If you are using the `--autoConnect` flag and tools like `list_pages`, `new_page
 2. Remote debugging is enabled in Chrome via `chrome://inspect/#remote-debugging`.
 3. You have allowed the remote debugging connection prompt in the browser.
 4. There is no other MCP server or tool trying to connect to the same debugging port.
+
+> [!IMPORTANT]
+> In Chrome versions up to 149, connection issues may be caused by frozen or unloaded tabs.
+> Chrome DevTools MCP forces all tabs to be loaded, so ensure your system has sufficient resources.
+> It is currently not recommended to use Chrome DevTools MCP with browser instances running hundreds of tabs.
+> See [Issue #1921](https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/1921) for more details.

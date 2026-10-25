@@ -1,6 +1,6 @@
 <!-- AUTO GENERATED DO NOT EDIT - run 'npm run gen' to update-->
 
-# Chrome DevTools MCP Slim Tool Reference (~359 cl100k_base tokens)
+# Chrome DevTools MCP Slim Tool Reference
 
 - **[Navigation automation](#navigation-automation)** (1 tools)
   - [`navigate`](#navigate)
@@ -34,8 +34,10 @@
 
 ### `screenshot`
 
-**Description:** Takes a [`screenshot`](#screenshot)
+**Description:** Takes a png [`screenshot`](#screenshot)
 
-**Parameters:** None
+**Parameters:**
+
+- **filePath** (string) _(optional)_: The absolute path, or a path relative to the current working directory, to save the [`screenshot`](#screenshot) to instead of attaching it to the response.
 
 ---

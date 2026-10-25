@@ -7,13 +7,13 @@
     "url": "https://github.com/neolivz/brave-devtools-mcp",
     "source": "github"
   },
-  "version": "0.21.0",
+  "version": "1.12.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "brave-devtools-mcp",
-      "version": "0.21.0",
+      "version": "1.12.0",
       "transport": {
         "type": "stdio"
       },

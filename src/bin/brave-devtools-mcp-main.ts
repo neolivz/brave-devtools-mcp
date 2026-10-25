@@ -4,37 +4,82 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import '../polyfill.js';
+import '../utils/polyfill.js';
 
 import process from 'node:process';
 
-import {createMcpServer, logDisclaimers} from '../index.js';
-import {logger, saveLogsToFile} from '../logger.js';
+import {BrowserManager} from '../BrowserManager.js';
+import {McpServer} from '../index.js';
 import {StdioServerTransport} from '../third_party/index.js';
 import {checkForUpdates} from '../utils/check-for-updates.js';
+import {logDisclaimers} from '../utils/disclaimers.js';
+import {logger, saveLogsToFile} from '../utils/logger.js';
+import {setupUnhandledRejectionHandler} from '../utils/errorHandling.js';
 import {VERSION} from '../version.js';
 
-import {parseArguments} from './brave-devtools-mcp-cli-options.js';
+import {ConfigParser} from '../config/ConfigParser.js';
 
-await checkForUpdates(
-  'Run `npm install brave-devtools-mcp@latest` to update.',
-);
+await checkForUpdates('Run `npm install brave-devtools-mcp@latest` to update.');
 
-export const args = parseArguments(VERSION);
+const configParser = new ConfigParser(VERSION);
+const serverConfig = configParser.parseConfig();
+const args = serverConfig.resolved;
 
 const logFile = args.logFile ? saveLogsToFile(args.logFile) : undefined;
 
-if (process.env['BRAVE_DEVTOOLS_MCP_CRASH_ON_UNCAUGHT'] !== 'true') {
-  process.on('unhandledRejection', (reason, promise) => {
-    logger('Unhandled promise rejection', promise, reason);
-  });
-}
+setupUnhandledRejectionHandler(() => {
+  process.exit(1);
+});
 
-logger(`Starting Brave DevTools MCP Server v${VERSION}`);
-const {server} = await createMcpServer(args, {
+logger?.(`Starting Brave DevTools MCP Server v${VERSION}`);
+const browserManager = new BrowserManager(serverConfig, {
   logFile,
 });
+const serverPromise = McpServer.from(serverConfig, {
+  browserManager,
+});
+
+// Shutdown on stdin EOF (stdio MCP convention — the client closes the
+// transport to signal exit) and on standard termination signals. Without
+// this, an active Chrome subprocess keeps the Node event loop ref'd after
+// stdin closes and the server hangs until something else kills it.
+let shuttingDown = false;
+async function shutdown(reason: string): Promise<void> {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+  logger?.(`Shutting down (${reason})`);
+  // Backstop in case browser teardown hangs (e.g. unresponsive Chrome,
+  // slow beforeunload handlers, many tabs). Exits 0 because we still
+  // honored the shutdown request; the log line preserves observability.
+  // Unref'd so it doesn't keep the loop alive on the clean path.
+  setTimeout(() => {
+    logger?.('Shutdown timeout exceeded, forcing exit');
+    process.exit(0);
+  }, 5000).unref();
+  const server = await serverPromise;
+  await server.close();
+  process.exit(0);
+}
+process.stdin.on('end', () => {
+  void shutdown('stdin end');
+});
+process.stdin.on('close', () => {
+  void shutdown('stdin close');
+});
+process.on('SIGTERM', () => {
+  void shutdown('SIGTERM');
+});
+process.on('SIGINT', () => {
+  void shutdown('SIGINT');
+});
+process.on('SIGHUP', () => {
+  void shutdown('SIGHUP');
+});
+
+const server = await serverPromise;
 const transport = new StdioServerTransport();
 await server.connect(transport);
-logger('Brave DevTools MCP Server connected');
+logger?.('Brave DevTools MCP Server connected');
 logDisclaimers(args);

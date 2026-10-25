@@ -5,248 +5,442 @@
  */
 
 import type fs from 'node:fs';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 
-import type {parseArguments} from './bin/brave-devtools-mcp-cli-options.js';
-import {ensureBrowserConnected, ensureBrowserLaunched} from './browser.js';
-import {loadIssueDescriptions} from './issue-descriptions.js';
-import {logger} from './logger.js';
-import {McpContext} from './McpContext.js';
-import {McpResponse} from './McpResponse.js';
-import {Mutex} from './Mutex.js';
-import {SlimMcpResponse} from './SlimMcpResponse.js';
+import {BrowserManager} from './BrowserManager.js';
+import {ConfigParser} from './config/ConfigParser.js';
+import {ConfigWatcher} from './config/ConfigWatcher.js';
 import {
-  McpServer,
+  DEFAULT_FILESYSTEM_ROOT,
+  type ParsedArguments,
+} from './config/mcp-options.js';
+import {ServerConfig} from './config/ServerConfig.js';
+import {loadIssueDescriptions} from './devtools/issueDescriptions.js';
+import {McpContext} from './McpContext.js';
+import {HeapSnapshotManager} from './processors/HeapSnapshotManager.js';
+import {
   type CallToolResult,
-  SetLevelRequestSchema,
+  McpServer as SdkMcpServer,
+  ProtocolError,
+  ProtocolErrorCode,
+  type RegisteredTool,
+  type Root,
+  type Transport,
+  puppeteer,
 } from './third_party/index.js';
-import {ToolCategory} from './tools/categories.js';
-import type {DefinedPageTool, ToolDefinition} from './tools/ToolDefinition.js';
-import {pageIdSchema} from './tools/ToolDefinition.js';
+import {ToolHandler} from './ToolHandler.js';
+import type {AnyToolDefinition} from './tools/ToolDefinition.js';
 import {createTools} from './tools/tools.js';
+import {logCruxDisclaimer} from './utils/disclaimers.js';
+import {getErrorMessage} from './utils/errorHandling.js';
+import {logger} from './utils/logger.js';
+import {TaskRunner} from './utils/TaskRunner.js';
 import {VERSION} from './version.js';
 
-export async function createMcpServer(
-  serverArgs: ReturnType<typeof parseArguments>,
-  options: {
-    logFile?: fs.WriteStream;
-  },
-) {
-  const server = new McpServer(
-    {
-      name: 'brave_devtools',
-      title: 'Brave DevTools MCP server',
-      version: VERSION,
-    },
-    {capabilities: {logging: {}}},
-  );
-  server.server.setRequestHandler(SetLevelRequestSchema, () => {
-    return {};
-  });
+puppeteer.setFollowSymlinks(false);
 
-  let context: McpContext;
-  async function getContext(): Promise<McpContext> {
-    const braveArgs: string[] = (serverArgs.braveArg ?? []).map(String);
-    const ignoreDefaultBraveArgs: string[] = (
-      serverArgs.ignoreDefaultBraveArg ?? []
-    ).map(String);
-    if (serverArgs.proxyServer) {
-      braveArgs.push(`--proxy-server=${serverArgs.proxyServer}`);
-    }
-    const devtools = serverArgs.experimentalDevtools ?? false;
-    const browser =
-      serverArgs.browserUrl || serverArgs.wsEndpoint || serverArgs.autoConnect
-        ? await ensureBrowserConnected({
-            browserURL: serverArgs.browserUrl,
-            wsEndpoint: serverArgs.wsEndpoint,
-            wsHeaders: serverArgs.wsHeaders,
-            userDataDir: serverArgs.userDataDir,
-            devtools,
-          })
-        : await ensureBrowserLaunched({
-            headless: serverArgs.headless,
-            executablePath: serverArgs.executablePath,
-            isolated: serverArgs.isolated ?? false,
-            userDataDir: serverArgs.userDataDir,
-            logFile: options.logFile,
-            viewport: serverArgs.viewport,
-            braveArgs,
-            ignoreDefaultBraveArgs,
-            acceptInsecureCerts: serverArgs.acceptInsecureCerts,
-            devtools,
-            enableExtensions: serverArgs.categoryExtensions,
-            viaCli: serverArgs.viaCli,
-          });
+/**
+ * Timeout for a `roots/list` that a tool call is waiting on, matching the 5s
+ * default used for page operations. `getContext()` awaits it before
+ * `ToolHandler` enters the task runner, so leaving it unbounded lets a client
+ * that negotiates `roots` but does not answer delay every tool for the SDK's
+ * default of 60s. Background refreshes are not bounded by this, so roots a
+ * slow client sends late still land.
+ */
+const ROOTS_REQUEST_TIMEOUT = 5_000;
 
-    if (context?.browser !== browser) {
-      context = await McpContext.from(browser, logger, {
-        experimentalDevToolsDebugging: devtools,
-        experimentalIncludeAllPages: serverArgs.experimentalIncludeAllPages,
-        performanceCrux: serverArgs.performanceCrux,
-      });
-    }
-    return context;
+export interface McpServerOptions {
+  browserManager: BrowserManager;
+  logFile?: fs.WriteStream;
+}
+
+interface ToolEntry {
+  handler: ToolHandler;
+  registeredTool: RegisteredTool;
+}
+
+export class McpServer {
+  readonly server: SdkMcpServer;
+  #config: ServerConfig;
+  #browserManager: BrowserManager;
+  #context: McpContext;
+  /** Runs every tool call and config reload. */
+  #taskRunner = new TaskRunner();
+  #heapSnapshotManager = new HeapSnapshotManager(this.#taskRunner);
+
+  /**
+   * Client roots stay valid across browser reconnects and only the client can
+   * invalidate them through a `roots/list_changed` notification. CLI-configured
+   * roots are read from `#config` when combining roots.
+   */
+  #lastClientRoots?: Root[];
+  /**
+   * The bounded initial `roots/list` request. Every tool call that starts
+   * before the client answered waits on the same request, so a client that
+   * negotiates roots but never answers only delays the first calls.
+   */
+  #initialRoots?: Promise<void>;
+  #configWatcher?: ConfigWatcher;
+  #tools = new Map<string, ToolEntry>();
+
+  private constructor(config: ServerConfig, options: McpServerOptions) {
+    this.#config = config;
+    this.#browserManager = options.browserManager;
+    this.server = new SdkMcpServer(
+      {
+        name: 'brave_devtools',
+        title: 'Brave DevTools MCP server',
+        version: VERSION,
+      },
+      {
+        capabilities: {logging: {}, tools: {listChanged: true}},
+        // Enabling or updating many tools at once sends a single notification.
+        debouncedNotificationMethods: ['notifications/tools/list_changed'],
+      },
+    );
+
+    this.#context = McpContext.create(logger, {
+      config: this.#config,
+      heapSnapshotManager: this.#heapSnapshotManager,
+      taskRunner: this.#taskRunner,
+      getBrowser: () => this.#browserManager.ensureBrowser(),
+    });
+    this.#context.setRoots(this.#combinedRoots());
+
+    this.server.server.setRequestHandler('logging/setLevel', () => {
+      return {};
+    });
+
+    this.server.server.oninitialized = () => {
+      if (this.server.server.getClientCapabilities()?.roots) {
+        void this.#updateRoots();
+        this.server.server.setNotificationHandler(
+          'notifications/roots/list_changed',
+          () => {
+            void this.#updateRoots();
+          },
+        );
+      } else if (
+        !this.#config.resolved.allowUnrestrictedPaths &&
+        ((this.#config.resolved.filesystemRoot ?? []).length === 0 ||
+          this.#config.resolved.filesystemRoot === DEFAULT_FILESYSTEM_ROOT)
+      ) {
+        console.warn(
+          '[brave-devtools-mcp] The connecting client did not negotiate the MCP roots ' +
+            'capability. Tools that read or write local files will be restricted to the OS temp directory. ' +
+            'To restore the previous unrestricted behavior, start the server with ' +
+            '--allow-unrestricted-paths.',
+        );
+      }
+    };
   }
 
-  const toolMutex = new Mutex();
+  async connect(transport: Transport): Promise<void> {
+    if (this.#config.resolved.watchConfig) {
+      this.watchConfig();
+    }
+    return await this.server.connect(transport);
+  }
 
-  function registerTool(tool: ToolDefinition | DefinedPageTool): void {
-    if (
-      tool.annotations.category === ToolCategory.EMULATION &&
-      serverArgs.categoryEmulation === false
-    ) {
-      return;
+  async callTool(
+    name: string,
+    args: Record<string, unknown> = {},
+  ): Promise<CallToolResult> {
+    const toolHandler = this.#tools.get(name)?.handler;
+    if (!toolHandler) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Tool ${name} not found`,
+          },
+        ],
+        isError: true,
+      };
     }
-    if (
-      tool.annotations.category === ToolCategory.PERFORMANCE &&
-      serverArgs.categoryPerformance === false
-    ) {
-      return;
-    }
-    if (
-      tool.annotations.category === ToolCategory.NETWORK &&
-      serverArgs.categoryNetwork === false
-    ) {
-      return;
-    }
-    if (
-      tool.annotations.category === ToolCategory.EXTENSIONS &&
-      !serverArgs.categoryExtensions
-    ) {
-      return;
-    }
-    if (
-      tool.annotations.category === ToolCategory.IN_PAGE &&
-      !serverArgs.categoryInPageTools
-    ) {
-      return;
-    }
-    if (
-      tool.annotations.conditions?.includes('computerVision') &&
-      !serverArgs.experimentalVision
-    ) {
-      return;
-    }
-    if (
-      tool.annotations.conditions?.includes('experimentalInteropTools') &&
-      !serverArgs.experimentalInteropTools
-    ) {
-      return;
-    }
-    if (
-      tool.annotations.conditions?.includes('screencast') &&
-      !serverArgs.experimentalScreencast
-    ) {
-      return;
-    }
-    const schema =
-      'pageScoped' in tool &&
-      tool.pageScoped &&
-      serverArgs.experimentalPageIdRouting &&
-      !serverArgs.slim
-        ? {...tool.schema, ...pageIdSchema}
-        : tool.schema;
+    return await toolHandler.handle(args);
+  }
 
-    server.registerTool(
+  /**
+   * Applies a new config to the running server. Only reloadable options are
+   * applied, all other options keep the value the server was started with.
+   * Tools are updated in place and only tools whose listing changed notify
+   * the client, which results in at most one `tools/list_changed`
+   * notification.
+   */
+  async applyConfig(config: ServerConfig): Promise<void> {
+    // Goes ahead of waiting tool calls and waits for running ones, so every
+    // waiting call runs with the new config.
+    using guard = await this.#taskRunner.pause();
+    await this.#applyConfigLocked(this.#config.mergeReloadable(config));
+  }
+
+  async #applyConfigLocked(nextConfig: ServerConfig): Promise<void> {
+    const previousArgs = this.#config.resolved;
+    const nextArgs = nextConfig.resolved;
+    // Build everything before committing so that a throwing tool factory
+    // leaves the server untouched.
+    const updates: Array<{
+      entry: ToolEntry;
+      tool: AnyToolDefinition;
+    }> = [];
+    for (const tool of createTools(nextArgs)) {
+      const entry = this.#tools.get(tool.name);
+      if (entry) {
+        updates.push({entry, tool});
+      }
+    }
+
+    this.#config.commit(nextConfig);
+    for (const {entry, tool} of updates) {
+      if (entry.handler.update(tool)) {
+        entry.registeredTool.update({
+          description: tool.description,
+          paramsSchema: entry.handler.registeredInputSchema,
+          annotations: tool.annotations,
+          enabled: !entry.handler.disabled,
+        });
+      }
+    }
+
+    if (!previousArgs.performanceCrux || previousArgs.slim) {
+      logCruxDisclaimer(nextArgs);
+    }
+
+    this.#context.setRoots(this.#combinedRoots());
+    await this.#context.onConfigChanged(previousArgs);
+  }
+
+  /**
+   * Watches the config file and applies its changes to the running server.
+   */
+  watchConfig(): void {
+    const configPath = this.#config.configPath;
+    if (!configPath) {
+      console.error(
+        '--watchConfig has no effect because no config file was found.',
+      );
+      return;
+    }
+    this.#configWatcher?.dispose();
+    this.#configWatcher = undefined;
+    const watcher = new ConfigWatcher(configPath, content =>
+      this.#reloadConfig(watcher, configPath, content),
+    );
+    try {
+      watcher.start();
+    } catch (err) {
+      watcher.dispose();
+      console.error(`Failed to watch ${configPath}: ${getErrorMessage(err)}`);
+      return;
+    }
+    this.#configWatcher = watcher;
+  }
+
+  async #reloadConfig(
+    watcher: ConfigWatcher,
+    configPath: string,
+    content: string,
+  ): Promise<void> {
+    using guard = await this.#taskRunner.pause();
+    if (this.#configWatcher !== watcher) {
+      return;
+    }
+    let config: ServerConfig;
+    let nextConfig: ServerConfig;
+    try {
+      const fileArgs = ConfigParser.parseConfigFile(configPath, content);
+      config = this.#config.withFileArgs(fileArgs);
+      nextConfig = this.#config.mergeReloadable(config);
+    } catch (err) {
+      const message = `Keeping the previous configuration, failed to reload ${configPath}: ${getErrorMessage(err)}`;
+      logger?.(message);
+      console.error(message);
+      return;
+    }
+    await this.#applyConfigLocked(nextConfig);
+    const restartRequired = this.#config.getRestartRequiredChanges(config);
+    logger?.(`Applied config changes from ${configPath}`);
+    if (restartRequired.length > 0) {
+      const message = `Restart brave-devtools-mcp to fully apply changes to ${restartRequired.map(name => `--${name}`).join(', ')} from ${configPath}.`;
+      logger?.(message);
+      console.error(message);
+    }
+  }
+
+  /**
+   * Closes the MCP connection and disposes internal context/listeners.
+   */
+  async close(): Promise<void> {
+    this.#configWatcher?.dispose();
+    this.#configWatcher = undefined;
+    try {
+      this.#context.dispose();
+    } catch (err) {
+      logger?.('Failed to dispose context', err);
+    }
+    this.#heapSnapshotManager.dispose();
+    await Promise.allSettled([
+      this.#browserManager.close(),
+      this.server.close(),
+    ]);
+  }
+
+  [Symbol.dispose](): void {
+    this.close().catch(err => {
+      logger?.('Failed to dispose McpServer', err);
+    });
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.close();
+  }
+
+  static async from(
+    config: ServerConfig,
+    options: McpServerOptions,
+  ): Promise<McpServer> {
+    const server = new McpServer(config, options);
+    await server.#init();
+    return server;
+  }
+
+  async #init(): Promise<void> {
+    // Tool definitions take a ParsedArguments snapshot; reload recreates them.
+    for (const tool of createTools(this.#config.resolved)) {
+      this.#registerTool(tool);
+    }
+    this.#setToolCallRequestHandler();
+    await loadIssueDescriptions();
+  }
+
+  #combinedRoots(): Root[] | undefined {
+    const serverArgs = this.#config.resolved;
+    const configuredRoots = (
+      serverArgs.allowUnrestrictedPaths ? [] : (serverArgs.filesystemRoot ?? [])
+    ).map(root => {
+      const rootPath = path.resolve(root);
+      return {
+        uri: pathToFileURL(rootPath).href,
+        name: path.basename(rootPath) || rootPath,
+      };
+    });
+    if (configuredRoots.length === 0 && this.#lastClientRoots === undefined) {
+      return undefined;
+    }
+    return [...configuredRoots, ...(this.#lastClientRoots ?? [])];
+  }
+
+  /**
+   * `timeout` is only passed where a tool call is waiting on the result – the
+   * background refreshes (on initialization and `roots/list_changed`) block
+   * nobody, so bounding them would just discard roots a slow client was about
+   * to send
+   */
+  async #updateRoots(timeout?: number): Promise<void> {
+    if (!this.server.server.getClientCapabilities()?.roots) {
+      return;
+    }
+    try {
+      const result = await this.server.server.request(
+        {method: 'roots/list'},
+        timeout === undefined ? undefined : {timeout},
+      );
+      this.#lastClientRoots = result.roots;
+      this.#context.setRoots(this.#combinedRoots());
+    } catch (e) {
+      logger?.('Failed to list roots', e);
+    }
+  }
+
+  async #getContext(): Promise<McpContext> {
+    if (this.#lastClientRoots === undefined) {
+      // Nothing listed yet, so this call has to wait – bounded, since every
+      // tool call waits on it, and a later background refresh still lands
+      this.#initialRoots ??= this.#updateRoots(ROOTS_REQUEST_TIMEOUT);
+      await this.#initialRoots;
+    }
+    return this.#context;
+  }
+
+  #createToolHandler(tool: AnyToolDefinition): ToolHandler {
+    return new ToolHandler(
+      tool,
+      this.#config,
+      () => this.#getContext(),
+      () => this.#browserManager.abandonPendingAttempt(),
+    );
+  }
+
+  /**
+   * Overrides the SDK's `tools/call` handler so enabled and input-schema
+   * checks run inside `ToolHandler.handle()` inside the task runner.
+   */
+  #setToolCallRequestHandler(): void {
+    this.server.server.setRequestHandler('tools/call', async request => {
+      const entry = this.#tools.get(request.params.name);
+      if (!entry) {
+        throw new ProtocolError(
+          ProtocolErrorCode.InvalidParams,
+          `Tool ${request.params.name} not found`,
+        );
+      }
+      const result = await entry.handler.handle(request.params.arguments, {
+        viaMcp: true,
+      });
+      return this.server.server.projectCallToolResult(result, undefined);
+    });
+  }
+
+  #registerTool(tool: AnyToolDefinition): void {
+    const handler = this.#createToolHandler(tool);
+
+    const registeredTool = this.server.registerTool(
       tool.name,
       {
         description: tool.description,
-        inputSchema: schema,
+        inputSchema: handler.registeredInputSchema,
         annotations: tool.annotations,
       },
-      async (params): Promise<CallToolResult> => {
-        const guard = await toolMutex.acquire();
-        try {
-          logger(`${tool.name} request: ${JSON.stringify(params, null, '  ')}`);
-          const context = await getContext();
-          logger(`${tool.name} context: resolved`);
-          await context.detectOpenDevToolsWindows();
-          const response = serverArgs.slim
-            ? new SlimMcpResponse(serverArgs)
-            : new McpResponse(serverArgs);
-          if ('pageScoped' in tool && tool.pageScoped) {
-            const page =
-              serverArgs.experimentalPageIdRouting &&
-              params.pageId &&
-              !serverArgs.slim
-                ? context.getPageById(params.pageId)
-                : context.getSelectedMcpPage();
-            response.setPage(page);
-            await tool.handler(
-              {
-                params,
-                page,
-              },
-              response,
-              context,
-            );
-          } else {
-            await tool.handler(
-              // @ts-expect-error types do not match.
-              {
-                params,
-              },
-              response,
-              context,
-            );
-          }
-          const {content, structuredContent} = await response.handle(
-            tool.name,
-            context,
-          );
-          const result: CallToolResult & {
-            structuredContent?: Record<string, unknown>;
-          } = {
-            content,
-          };
-          if (serverArgs.experimentalStructuredContent) {
-            result.structuredContent = structuredContent as Record<
-              string,
-              unknown
-            >;
-          }
-          return result;
-        } catch (err) {
-          logger(`${tool.name} error:`, err, err?.stack);
-          let errorText = err && 'message' in err ? err.message : String(err);
-          if ('cause' in err && err.cause) {
-            errorText += `\nCause: ${err.cause.message}`;
-          }
-          return {
-            content: [
-              {
-                type: 'text',
-                text: errorText,
-              },
-            ],
-            isError: true,
-          };
-        } finally {
-          guard.dispose();
-        }
-      },
+      args => handler.handle(args),
     );
+
+    if (handler.disabled) {
+      registeredTool.disable();
+    }
+
+    this.#tools.set(tool.name, {handler, registeredTool});
   }
-
-  const tools = createTools(serverArgs);
-  for (const tool of tools) {
-    registerTool(tool);
-  }
-
-  await loadIssueDescriptions();
-
-  return {server};
 }
 
-export const logDisclaimers = (args: ReturnType<typeof parseArguments>) => {
-  console.error(
-    `brave-devtools-mcp exposes content of the browser instance to the MCP clients allowing them to inspect,
-debug, and modify any data in the browser or DevTools.
-Avoid sharing sensitive or personal information that you do not want to share with MCP clients.`,
-  );
-
-  if (!args.slim && args.performanceCrux) {
-    console.error(
-      `Performance tools may send trace URLs to the Google CrUX API to fetch real-user experience data. To disable, run with --no-performance-crux.`,
-    );
-  }
-};
+/**
+ * Creates and initializes a Chrome DevTools MCP server instance.
+ *
+ * Maintained as a public API for backwards compatibility because external
+ * consumers and integrations rely on `createMcpServer()`. For new code,
+ * prefer using `McpServer.from(config, options)`.
+ */
+export async function createMcpServer(
+  serverArgs: ParsedArguments,
+  options: {
+    logFile?: fs.WriteStream;
+  },
+): Promise<{server: SdkMcpServer}> {
+  // createMcpServer takes a flat ParsedArguments snapshot and only returns
+  // SdkMcpServer, so instances created here are never reloaded.
+  const serverConfig = new ServerConfig({
+    cliArgs: {},
+    fileArgs: {},
+    configPath: undefined,
+    resolved: serverArgs,
+  });
+  const browserManager = new BrowserManager(serverConfig, {
+    logFile: options.logFile,
+  });
+  const server = await McpServer.from(serverConfig, {
+    browserManager,
+    ...options,
+  });
+  return {server: server.server};
+}
