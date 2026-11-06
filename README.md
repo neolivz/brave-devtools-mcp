@@ -1,5 +1,20 @@
 # Brave DevTools MCP
 
+> [!WARNING]
+> **This fork is deprecated and no longer maintained.** Use
+> [triuzzi/brave-devtools-mcp](https://github.com/triuzzi/brave-devtools-mcp)
+> instead, published on npm as
+> [`brave-mcp`](https://www.npmjs.com/package/brave-mcp). It tracks upstream
+> chrome-devtools-mcp releases, tests against Brave in CI and ships
+> Brave-specific skills and plugins.
+>
+> To switch, replace `brave-devtools-mcp@latest` with `brave-mcp@latest` in
+> your MCP client config, for example:
+>
+> ```sh
+> claude mcp add brave-devtools --scope user npx brave-mcp@latest
+> ```
+
 [![npm brave-devtools-mcp package](https://img.shields.io/npm/v/brave-devtools-mcp.svg)](https://npmjs.org/package/brave-devtools-mcp)
 
 > **Fork of [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp)** — adapted to work with [Brave Browser](https://brave.com). All credit for the original project goes to the Chrome DevTools team at Google.
